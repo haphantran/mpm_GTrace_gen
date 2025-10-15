@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mpm_trace:Canvas xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:mpm_trace="domain://MPM_trace">
+  <nodes xmi:type="mpm_trace:MetaModel" name="Ecore"/>
+  <nodes xmi:type="mpm_trace:MetaModel" name="LTrace" conformsTo="//@nodes.0"/>
+  <nodes xmi:type="mpm_trace:MetaModel" name="Global View MM" conformsTo="//@nodes.0"/>
+  <nodes xmi:type="mpm_trace:MetaModel" name="PSMM" conformsTo="//@nodes.0"/>
+  <nodes xmi:type="mpm_trace:Model" name="GlobalView Model" conformsTo="//@nodes.2"/>
+  <nodes xmi:type="mpm_trace:Transformation" name="GenArduino" exec="//@nodes.16" IN="//@nodes.4" OUT="//@nodes.8" conformsTo="//@nodes.3"/>
+  <nodes xmi:type="mpm_trace:Transformation" name="GenRIOT" exec="//@nodes.17" IN="//@nodes.4" OUT="//@nodes.9" conformsTo="//@nodes.3"/>
+  <nodes xmi:type="mpm_trace:Transformation" name="GenContiki" exec="//@nodes.18" IN="//@nodes.4" OUT="//@nodes.10" conformsTo="//@nodes.3"/>
+  <nodes xmi:type="mpm_trace:Model" name="Arduino_PSM" conformsTo="//@nodes.3" representedAs="//@nodes.11 //@nodes.12" associatedWith="//@nodes.24"/>
+  <nodes xmi:type="mpm_trace:Model" name="RIOT_PSM" conformsTo="//@nodes.3" representedAs="//@nodes.11 //@nodes.12" associatedWith="//@nodes.25"/>
+  <nodes xmi:type="mpm_trace:Model" name="Contiki_PSM" conformsTo="//@nodes.3" representedAs="//@nodes.11 //@nodes.12" associatedWith="//@nodes.26"/>
+  <nodes xmi:type="mpm_trace:Viewpoint" name="Network Viewpoint"/>
+  <nodes xmi:type="mpm_trace:Viewpoint" name="Sensor Data Viewpoint"/>
+  <nodes xmi:type="mpm_trace:TraceModel" name="Trace_Arduino" conformsTo="//@nodes.1">
+    <contains name="AssignIPAddress">
+      <intents name="IPAssignment">
+        <params name="range = 192.168.1.0/24"/>
+      </intents>
+      <traceLinks name="IPNetMask -> IP Address"/>
+    </contains>
+  </nodes>
+  <nodes xmi:type="mpm_trace:TraceModel" name="Trace_RIOT" conformsTo="//@nodes.1">
+    <contains name="CalculatePropagationDelay">
+      <intents name="CalculateDelay">
+        <params name="Propagation_speed = 2.99e8"/>
+      </intents>
+      <traceLinks name="Distance -> PropDelay"/>
+    </contains>
+  </nodes>
+  <nodes xmi:type="mpm_trace:TraceModel" name="Trace_Contiki" conformsTo="//@nodes.1"/>
+  <nodes xmi:type="mpm_trace:TransformationExecution" name="Exec_Arduino" generates="//@nodes.13"/>
+  <nodes xmi:type="mpm_trace:TransformationExecution" name="Exec_RIOT" generates="//@nodes.14"/>
+  <nodes xmi:type="mpm_trace:TransformationExecution" name="Exec_Contiki" generates="//@nodes.15"/>
+  <nodes xmi:type="mpm_trace:Transformation" name="PSM2SD" exec="//@nodes.22" IN="//@nodes.9 //@nodes.8 //@nodes.10" OUT="//@nodes.20" conformsTo="//@nodes.0"/>
+  <nodes xmi:type="mpm_trace:Model" name="System Diagram" conformsTo="//@nodes.21"/>
+  <nodes xmi:type="mpm_trace:MetaModel" name="SDMM" conformsTo="//@nodes.0"/>
+  <nodes xmi:type="mpm_trace:TransformationExecution" name="Exec_PSM2SD" generates="//@nodes.23"/>
+  <nodes xmi:type="mpm_trace:TraceModel" name="Trace_PSM2SD" conformsTo="//@nodes.1"/>
+  <nodes xmi:type="mpm_trace:Network_Engineer" name="Network Engineer Role"/>
+  <nodes xmi:type="mpm_trace:IoT_Engineer" name="IoT Eng"/>
+  <nodes xmi:type="mpm_trace:Data_Engineer" name="Data Eng"/>
+</mpm_trace:Canvas>

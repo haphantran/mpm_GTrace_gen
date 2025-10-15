@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<domain:Domain xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:domain="http://www.eclipse.org/sirius-web/domain" name="MPM_trace">
+  <types name="MetaModel" superTypes="//@types.1">
+    <relations name="conformsTo" targetType="//@types.0"/>
+  </types>
+  <types name="Node" abstract="true">
+    <attributes name="name"/>
+  </types>
+  <types name="Canvas">
+    <relations name="nodes" many="true" containment="true" targetType="//@types.1"/>
+  </types>
+  <types name="Model" superTypes="//@types.1">
+    <relations name="conformsTo" optional="false" targetType="//@types.0"/>
+    <relations name="representedAs" many="true" targetType="//@types.5"/>
+    <relations name="associatedWith" many="true" targetType="//@types.13"/>
+  </types>
+  <types name="Transformation" superTypes="//@types.1">
+    <relations name="exec" many="true" targetType="//@types.7"/>
+    <relations name="IN" many="true" targetType="//@types.3"/>
+    <relations name="OUT" many="true" targetType="//@types.3"/>
+    <relations name="conformsTo" optional="false" targetType="//@types.0"/>
+  </types>
+  <types name="Viewpoint" superTypes="//@types.1"/>
+  <types name="TraceModel" superTypes="//@types.1">
+    <relations name="contains" many="true" containment="true" targetType="//@types.8"/>
+    <relations name="conformsTo" targetType="//@types.0"/>
+  </types>
+  <types name="TransformationExecution" superTypes="//@types.1">
+    <relations name="generates" many="true" targetType="//@types.6"/>
+  </types>
+  <types name="TracedRule" superTypes="//@types.1">
+    <relations name="intents" many="true" containment="true" targetType="//@types.10"/>
+    <relations name="traceLinks" many="true" containment="true" targetType="//@types.11"/>
+  </types>
+  <types name="Transformantion" superTypes="//@types.1"/>
+  <types name="Intent" superTypes="//@types.1">
+    <relations name="params" many="true" containment="true" targetType="//@types.12"/>
+  </types>
+  <types name="TraceLink" superTypes="//@types.1"/>
+  <types name="IntentParameter" superTypes="//@types.1"/>
+  <types name="Role" superTypes="//@types.1" abstract="true"/>
+  <types name="IoT_Engineer" superTypes="//@types.13"/>
+  <types name="Network_Engineer" superTypes="//@types.13"/>
+  <types name="Data_Engineer" superTypes="//@types.13"/>
+  <types name="Embedded_System_Engineer" superTypes="//@types.13"/>
+</domain:Domain>
