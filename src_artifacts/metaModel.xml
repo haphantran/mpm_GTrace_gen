@@ -12,12 +12,12 @@
   <types name="Model" superTypes="//@types.1">
     <relations name="conformsTo" optional="false" targetType="//@types.0"/>
     <relations name="representedAs" many="true" targetType="//@types.5"/>
-    <relations name="associatedWith" many="true" targetType="//@types.13"/>
+    <relations name="associatedWith" many="true" targetType="//@types.12"/>
+    <relations name="In" many="true" targetType="//@types.4"/>
   </types>
   <types name="Transformation" superTypes="//@types.1">
     <relations name="exec" many="true" targetType="//@types.7"/>
-    <relations name="IN" many="true" targetType="//@types.3"/>
-    <relations name="OUT" many="true" targetType="//@types.3"/>
+    <relations name="Out" many="true" targetType="//@types.3"/>
     <relations name="conformsTo" optional="false" targetType="//@types.0"/>
   </types>
   <types name="Viewpoint" superTypes="//@types.1"/>
@@ -29,18 +29,17 @@
     <relations name="generates" many="true" targetType="//@types.6"/>
   </types>
   <types name="TracedRule" superTypes="//@types.1">
-    <relations name="intents" many="true" containment="true" targetType="//@types.10"/>
-    <relations name="traceLinks" many="true" containment="true" targetType="//@types.11"/>
+    <relations name="intents" many="true" containment="true" targetType="//@types.9"/>
+    <relations name="traceLinks" many="true" containment="true" targetType="//@types.10"/>
   </types>
-  <types name="Transformantion" superTypes="//@types.1"/>
   <types name="Intent" superTypes="//@types.1">
-    <relations name="params" many="true" containment="true" targetType="//@types.12"/>
+    <relations name="params" many="true" containment="true" targetType="//@types.11"/>
   </types>
   <types name="TraceLink" superTypes="//@types.1"/>
   <types name="IntentParameter" superTypes="//@types.1"/>
   <types name="Role" superTypes="//@types.1" abstract="true"/>
-  <types name="IoT_Engineer" superTypes="//@types.13"/>
-  <types name="Network_Engineer" superTypes="//@types.13"/>
-  <types name="Data_Engineer" superTypes="//@types.13"/>
-  <types name="Embedded_System_Engineer" superTypes="//@types.13"/>
+  <types name="IoT_Engineer" superTypes="//@types.12"/>
+  <types name="Network_Engineer" superTypes="//@types.12"/>
+  <types name="Data_Engineer" superTypes="//@types.12"/>
+  <types name="Embedded_System_Engineer" superTypes="//@types.12"/>
 </domain:Domain>
