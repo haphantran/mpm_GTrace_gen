@@ -22,8 +22,10 @@
   </types>
   <types name="Viewpoint" superTypes="//@types.1"/>
   <types name="TraceModel" superTypes="//@types.1">
+    <attributes name="version" type="NUMBER"/>
     <relations name="contains" many="true" containment="true" targetType="//@types.8"/>
     <relations name="conformsTo" targetType="//@types.0"/>
+    <relations name="ancestor" targetType="//@types.6"/>
   </types>
   <types name="TransformationExecution" superTypes="//@types.1">
     <relations name="generates" many="true" targetType="//@types.6"/>

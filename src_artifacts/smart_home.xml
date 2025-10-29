@@ -1,0 +1,280 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mpm_trace:Canvas xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:mpm_trace="domain://MPM_trace">
+
+  <!-- ========== METAMODELS ========== -->
+  <nodes xmi:type="mpm_trace:MetaModel" name="Ecore"/>
+  <nodes xmi:type="mpm_trace:MetaModel" name="ATL"/>
+  <nodes xmi:type="mpm_trace:MetaModel" name="LTrace" conformsTo="//@nodes.0"/>
+
+  <!-- ========== ROLES ========== -->
+  <nodes xmi:type="mpm_trace:IoT_Engineer" name="IoT Engineer"/>
+  <nodes xmi:type="mpm_trace:Embedded_System_Engineer" name="Embedded Engineer"/>
+
+  <!-- ========== LEVEL 0: Requirements → Architecture ========== -->
+
+  <!-- [5] L0 Input Model -->
+  <nodes xmi:type="mpm_trace:Model" name="SmartHomeRequirements"
+         conformsTo="//@nodes.0"
+         In="//@nodes.6"
+         associatedWith="//@nodes.3"/>
+
+  <!-- [6] L0 Transformation -->
+  <nodes xmi:type="mpm_trace:Transformation" name="Requirements2Architecture"
+         exec="//@nodes.8 //@nodes.9"
+         Out="//@nodes.7"
+         conformsTo="//@nodes.1"/>
+
+  <!-- [7] L0 Output Model -->
+  <nodes xmi:type="mpm_trace:Model" name="SmartHomeArchitecture"
+         conformsTo="//@nodes.0"
+         In="//@nodes.10 //@nodes.14"
+         associatedWith="//@nodes.3"/>
+
+  <!-- [8] L0 Execution V1 -->
+  <nodes xmi:type="mpm_trace:TransformationExecution" name="Exec_Req2Arch_v1"
+         generates="//@nodes.27"/>
+
+  <!-- [9] L0 Execution V2 -->
+  <nodes xmi:type="mpm_trace:TransformationExecution" name="Exec_Req2Arch_v2_EnergyOpt"
+         generates="//@nodes.28"/>
+
+  <!-- ========== LEVEL 1A: Architecture → Control PIM ========== -->
+
+  <!-- [10] L1A Transformation -->
+  <nodes xmi:type="mpm_trace:Transformation" name="Architecture2ControlPIM"
+         exec="//@nodes.11 //@nodes.12"
+         Out="//@nodes.13"
+         conformsTo="//@nodes.1"/>
+
+  <!-- [11] L1A Execution V1 -->
+  <nodes xmi:type="mpm_trace:TransformationExecution" name="Exec_Arch2PIM_v1_PID"
+         generates="//@nodes.29"/>
+
+  <!-- [12] L1A Execution V2 -->
+  <nodes xmi:type="mpm_trace:TransformationExecution" name="Exec_Arch2PIM_v2_Adaptive"
+         generates="//@nodes.30"/>
+
+  <!-- [13] L1A Output Model -->
+  <nodes xmi:type="mpm_trace:Model" name="TempControlPIM"
+         conformsTo="//@nodes.0"
+         In="//@nodes.17"
+         associatedWith="//@nodes.3"/>
+
+  <!-- ========== LEVEL 1B: Architecture → Analytics PIM (BRANCH!) ========== -->
+
+  <!-- [14] L1B Transformation -->
+  <nodes xmi:type="mpm_trace:Transformation" name="Architecture2AnalyticsPIM"
+         exec="//@nodes.15"
+         Out="//@nodes.16"
+         conformsTo="//@nodes.1"/>
+
+  <!-- [15] L1B Execution -->
+  <nodes xmi:type="mpm_trace:TransformationExecution" name="Exec_Arch2Analytics"
+         generates="//@nodes.31"/>
+
+  <!-- [16] L1B Output Model -->
+  <nodes xmi:type="mpm_trace:Model" name="DataAnalyticsPIM"
+         conformsTo="//@nodes.0"
+         In="//@nodes.21"
+         associatedWith="//@nodes.3"/>
+
+  <!-- ========== LEVEL 2A: Control PIM → ESP32 PSM ========== -->
+
+  <!-- [17] L2A Transformation -->
+  <nodes xmi:type="mpm_trace:Transformation" name="ControlPIM2PSM"
+         exec="//@nodes.18"
+         Out="//@nodes.19"
+         conformsTo="//@nodes.1"/>
+
+  <!-- [18] L2A Execution -->
+  <nodes xmi:type="mpm_trace:TransformationExecution" name="Exec_PIM2PSM_ESP32"
+         generates="//@nodes.32"/>
+
+  <!-- [19] L2A Output Model -->
+  <nodes xmi:type="mpm_trace:Model" name="ESP32_PSM"
+         conformsTo="//@nodes.0"
+         In="//@nodes.20"
+         associatedWith="//@nodes.4"/>
+
+  <!-- ========== LEVEL 3A: ESP32 PSM → C++ Code ========== -->
+
+  <!-- [20] L3A Transformation -->
+  <nodes xmi:type="mpm_trace:Transformation" name="ESP32_PSM2Code"
+         exec="//@nodes.23"
+         Out="//@nodes.24"
+         conformsTo="//@nodes.1"/>
+
+  <!-- ========== LEVEL 2B: Analytics PIM → Server PSM (BRANCH!) ========== -->
+
+  <!-- [21] L2B Transformation -->
+  <nodes xmi:type="mpm_trace:Transformation" name="AnalyticsPIM2PSM"
+         exec="//@nodes.22"
+         Out="//@nodes.25"
+         conformsTo="//@nodes.1"/>
+
+  <!-- [22] L2B Execution -->
+  <nodes xmi:type="mpm_trace:TransformationExecution" name="Exec_Analytics2ServerPSM"
+         generates="//@nodes.33"/>
+
+  <!-- [23] L3A Execution -->
+  <nodes xmi:type="mpm_trace:TransformationExecution" name="Exec_ESP32_Code"
+         generates="//@nodes.34"/>
+
+  <!-- [24] L3A Output Model -->
+  <nodes xmi:type="mpm_trace:Model" name="ESP32_CPP_Code"
+         conformsTo="//@nodes.0"
+         associatedWith="//@nodes.4"/>
+
+  <!-- [25] L2B Output Model -->
+  <nodes xmi:type="mpm_trace:Model" name="Server_PSM"
+         conformsTo="//@nodes.0"
+         In="//@nodes.26"
+         associatedWith="//@nodes.3"/>
+
+  <!-- ========== LEVEL 3B: Server PSM → Python/Java Code ========== -->
+
+  <!-- [26] L3B Transformation -->
+  <nodes xmi:type="mpm_trace:Transformation" name="ServerPSM2Code"
+         exec="//@nodes.35 //@nodes.36"
+         Out="//@nodes.37 //@nodes.38"
+         conformsTo="//@nodes.1"/>
+
+  <!-- ========== TRACES ========== -->
+
+  <!-- [27] L0 Trace V1 -->
+  <nodes xmi:type="mpm_trace:TraceModel" name="Trace_Req2Arch_v1" conformsTo="//@nodes.2" version="1">
+    <contains name="DecomposeToComponents">
+      <intents name="FunctionalDecomposition">
+        <params name="strategy = component_based"/>
+      </intents>
+      <traceLinks name="TempReq -> TempSensor"/>
+      <traceLinks name="TempReq -> Heater"/>
+    </contains>
+  </nodes>
+
+  <!-- [28] L0 Trace V2 (has ancestor) -->
+  <nodes xmi:type="mpm_trace:TraceModel" name="Trace_Req2Arch_v2_EnergyOpt"
+         conformsTo="//@nodes.2"
+         version="2"
+         ancestor="//@nodes.27">
+    <contains name="DecomposeWithPowerAwareness">
+      <intents name="EnergyAwareDecomposition">
+        <params name="power_reduction_target = 30%"/>
+      </intents>
+      <traceLinks name="TempReq -> LowPowerSensor"/>
+      <traceLinks name="TempReq -> SmartHeater"/>
+    </contains>
+  </nodes>
+
+  <!-- [29] L1A Trace V1 -->
+  <nodes xmi:type="mpm_trace:TraceModel" name="Trace_Arch2ControlPIM_PID" conformsTo="//@nodes.2" version="1">
+    <contains name="SelectPIDAlgorithm">
+      <intents name="AlgorithmSelection">
+        <params name="algorithm = PID"/>
+      </intents>
+      <traceLinks name="TempSensor -> TemperatureInput"/>
+      <traceLinks name="Heater -> PIDController"/>
+    </contains>
+  </nodes>
+
+  <!-- [30] L1A Trace V2 (has ancestor) -->
+  <nodes xmi:type="mpm_trace:TraceModel" name="Trace_Arch2ControlPIM_Adaptive"
+         conformsTo="//@nodes.2"
+         version="2"
+         ancestor="//@nodes.29">
+    <contains name="SelectAdaptiveAlgorithm">
+      <intents name="AdaptiveAlgorithmSelection">
+        <params name="algorithm = Adaptive"/>
+      </intents>
+      <traceLinks name="LowPowerSensor -> TemperatureInput"/>
+      <traceLinks name="SmartHeater -> AdaptiveController"/>
+    </contains>
+  </nodes>
+
+  <!-- [31] L1B Trace (Analytics branch) -->
+  <nodes xmi:type="mpm_trace:TraceModel" name="Trace_Arch2Analytics" conformsTo="//@nodes.2" version="1">
+    <contains name="DefineDataPipeline">
+      <intents name="AnalyticsDesign">
+        <params name="processing = time-series"/>
+      </intents>
+      <traceLinks name="TempSensor -> DataCollector"/>
+      <traceLinks name="HistoricalData -> TrendAnalyzer"/>
+    </contains>
+  </nodes>
+
+  <!-- [32] L2A Trace -->
+  <nodes xmi:type="mpm_trace:TraceModel" name="Trace_ControlPIM2ESP32" conformsTo="//@nodes.2" version="1">
+    <contains name="MapToESP32">
+      <intents name="EmbeddedPlatformMapping">
+        <params name="platform = ESP32"/>
+      </intents>
+      <traceLinks name="PIDController -> ESP32_Task"/>
+      <traceLinks name="TemperatureInput -> ADC_Channel"/>
+    </contains>
+  </nodes>
+
+  <!-- [33] L2B Trace -->
+  <nodes xmi:type="mpm_trace:TraceModel" name="Trace_Analytics2Server" conformsTo="//@nodes.2" version="1">
+    <contains name="MapToServerPlatform">
+      <intents name="ServerPlatformMapping">
+        <params name="platform = Linux_Server"/>
+      </intents>
+      <traceLinks name="DataCollector -> RESTEndpoint"/>
+      <traceLinks name="TrendAnalyzer -> AnalyticsService"/>
+    </contains>
+  </nodes>
+
+  <!-- [34] L3A Trace -->
+  <nodes xmi:type="mpm_trace:TraceModel" name="Trace_ESP32_CPP" conformsTo="//@nodes.2" version="1">
+    <contains name="GenerateCPPCode">
+      <intents name="CodeGeneration">
+        <params name="language = C++"/>
+      </intents>
+      <traceLinks name="ESP32_Task -> temp_control_task()"/>
+      <traceLinks name="ADC_Channel -> adc1_get_raw()"/>
+    </contains>
+  </nodes>
+
+  <!-- [35] L3B Execution Python -->
+  <nodes xmi:type="mpm_trace:TransformationExecution" name="Exec_ServerCode_Python"
+         generates="//@nodes.39"/>
+
+  <!-- [36] L3B Execution Java -->
+  <nodes xmi:type="mpm_trace:TransformationExecution" name="Exec_ServerCode_Java"
+         generates="//@nodes.40"/>
+
+  <!-- [37] L3B Output Python -->
+  <nodes xmi:type="mpm_trace:Model" name="Python_Code"
+         conformsTo="//@nodes.0"
+         associatedWith="//@nodes.3"/>
+
+  <!-- [38] L3B Output Java -->
+  <nodes xmi:type="mpm_trace:Model" name="Java_Code"
+         conformsTo="//@nodes.0"
+         associatedWith="//@nodes.3"/>
+
+  <!-- [39] L3B Trace Python -->
+  <nodes xmi:type="mpm_trace:TraceModel" name="Trace_Server2Python" conformsTo="//@nodes.2" version="1">
+    <contains name="GeneratePythonCode">
+      <intents name="CodeGeneration">
+        <params name="language = Python"/>
+        <params name="framework = FastAPI"/>
+      </intents>
+      <traceLinks name="RESTEndpoint -> @app.post()"/>
+      <traceLinks name="AnalyticsService -> class TrendAnalyzer"/>
+    </contains>
+  </nodes>
+
+  <!-- [40] L3B Trace Java -->
+  <nodes xmi:type="mpm_trace:TraceModel" name="Trace_Server2Java" conformsTo="//@nodes.2" version="1">
+    <contains name="GenerateJavaCode">
+      <intents name="CodeGeneration">
+        <params name="language = Java"/>
+        <params name="framework = Spring_Boot"/>
+      </intents>
+      <traceLinks name="RESTEndpoint -> @PostMapping()"/>
+      <traceLinks name="AnalyticsService -> class TrendAnalyzer"/>
+    </contains>
+  </nodes>
+
+</mpm_trace:Canvas>

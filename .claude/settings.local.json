@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3:*)",
+      "Bash(.venv/bin/generate-global-trace:*)",
+      "Bash(if [ -f .gitignore ])",
+      "Bash(then cat .gitignore)",
+      "Bash(else echo \"No .gitignore found\")",
+      "Bash(fi)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

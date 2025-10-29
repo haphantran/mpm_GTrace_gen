@@ -36,7 +36,7 @@
   <nodes xmi:type="mpm_trace:TransformationExecution" name="Exec_RIOT" generates="//@nodes.16"/>
   <nodes xmi:type="mpm_trace:TransformationExecution" name="Exec_Contiki" generates="//@nodes.17"/>
   <nodes xmi:type="mpm_trace:Transformation" name="PSM2SD" exec="//@nodes.24" Out="//@nodes.22" conformsTo="//@nodes.0"/>
-  <nodes xmi:type="mpm_trace:Model" name="System Diagram" conformsTo="//@nodes.23" In="//@nodes.29 //@nodes.37 //@nodes.41"/>
+  <nodes xmi:type="mpm_trace:Model" name="System Diagram" conformsTo="//@nodes.23" In="//@nodes.29 //@nodes.37"/>
   <nodes xmi:type="mpm_trace:MetaModel" name="SDMM" conformsTo="//@nodes.0"/>
   <nodes xmi:type="mpm_trace:TransformationExecution" name="Exec_PSM2SD" generates="//@nodes.25"/>
   <nodes xmi:type="mpm_trace:TraceModel" name="Trace_PSM2SD" conformsTo="//@nodes.3"/>
@@ -54,11 +54,9 @@
   <nodes xmi:type="mpm_trace:Transformation" name="test trans 3" exec="//@nodes.38" Out="//@nodes.40" conformsTo="//@nodes.2"/>
   <nodes xmi:type="mpm_trace:TransformationExecution" name="test tran exec 3" generates="//@nodes.39"/>
   <nodes xmi:type="mpm_trace:TraceModel" name="test trace 3" conformsTo="//@nodes.3"/>
-  <nodes xmi:type="mpm_trace:Model" name="test Output 3" conformsTo="//@nodes.5"/>
-  <nodes xmi:type="mpm_trace:Transformation" name="test_trans_4" exec="//@nodes.42 //@nodes.45" Out="//@nodes.43" conformsTo="//@nodes.1"/>
+  <nodes xmi:type="mpm_trace:Model" name="test Output 3" conformsTo="//@nodes.5" In="//@nodes.41"/>
+  <nodes xmi:type="mpm_trace:Transformation" name="test_trans_4" exec="//@nodes.42" Out="//@nodes.43" conformsTo="//@nodes.1"/>
   <nodes xmi:type="mpm_trace:TransformationExecution" name="execution 4" generates="//@nodes.44"/>
   <nodes xmi:type="mpm_trace:Model" name="output 4" conformsTo="//@nodes.0"/>
   <nodes xmi:type="mpm_trace:TraceModel" name="trace 4"/>
-  <nodes xmi:type="mpm_trace:TransformationExecution" name="test exec 4.2"/>
-  <nodes xmi:type="mpm_trace:TraceModel" name="test trace 4.2" conformsTo="//@nodes.0" ancestor="//@nodes.44"/>
 </mpm_trace:Canvas>
