@@ -6,7 +6,11 @@
       "Bash(if [ -f .gitignore ])",
       "Bash(then cat .gitignore)",
       "Bash(else echo \"No .gitignore found\")",
-      "Bash(fi)"
+      "Bash(fi)",
+      "Read(//Users/haphan/Downloads/**)",
+      "Bash(if [ -f src_artifacts/WSN_region_trace.xml ])",
+      "Bash(then python3 generate_global_trace.py src_artifacts/WSN_region_trace.xml)",
+      "Bash(else echo \"WSN_region_trace.xml not found\")"
     ],
     "deny": [],
     "ask": []

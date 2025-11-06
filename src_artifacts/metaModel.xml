@@ -37,7 +37,13 @@
   <types name="Intent" superTypes="//@types.1">
     <relations name="params" many="true" containment="true" targetType="//@types.11"/>
   </types>
-  <types name="TraceLink" superTypes="//@types.1"/>
+  <types name="TraceLink" superTypes="//@types.1">
+    <attributes name="sourceElementPath"/>
+    <attributes name="targetElementPath"/>
+    <attributes name="sourceAttribute"/>
+    <attributes name="targetAttribute"/>
+    <attributes name="linkType"/>
+  </types>
   <types name="IntentParameter" superTypes="//@types.1"/>
   <types name="Role" superTypes="//@types.1" abstract="true"/>
   <types name="IoT_Engineer" superTypes="//@types.12"/>

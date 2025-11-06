@@ -20,11 +20,29 @@ class GlobalTraceGeneratorD3:
         self.trace_models = {}
         self.transformations = {}
         self.executions = {}
+        self.models = {}  # Store Model nodes
 
     def parse_nodes(self):
         """Parse all nodes and index them"""
         for idx, node in enumerate(self.root.findall('nodes')):
             self.nodes[idx] = node
+
+    def extract_models(self):
+        """Extract all Model nodes"""
+        for idx, node in self.nodes.items():
+            if node.get('{http://www.omg.org/XMI}type') == 'mpm_trace:Model':
+                name = node.get('name')
+                conforms_to = node.get('conformsTo')
+                associated_with = node.get('associatedWith')
+                in_ref = node.get('In')  # Transformations this model is input to
+
+                self.models[idx] = {
+                    'index': idx,
+                    'name': name,
+                    'conformsTo': conforms_to,
+                    'associatedWith': associated_with,
+                    'In': in_ref
+                }
 
     def extract_trace_models(self):
         """Extract all TraceModel nodes"""
@@ -51,7 +69,15 @@ class GlobalTraceGeneratorD3:
                         rule_data['intents'].append(intent_data)
 
                     for link in rule.findall('traceLinks'):
-                        rule_data['trace_links'].append(link.get('name'))
+                        link_data = {
+                            'name': link.get('name'),
+                            'sourceElementPath': link.get('sourceElementPath'),
+                            'targetElementPath': link.get('targetElementPath'),
+                            'sourceAttribute': link.get('sourceAttribute'),
+                            'targetAttribute': link.get('targetAttribute'),
+                            'linkType': link.get('linkType')
+                        }
+                        rule_data['trace_links'].append(link_data)
 
                     traced_rules.append(rule_data)
 
@@ -244,34 +270,192 @@ class GlobalTraceGeneratorD3:
         # Calculate node levels
         node_levels = self.calculate_node_levels(dependencies)
 
-        # Build nodes data
+        # Build nodes data - MODELS, TRACES, AND ELEMENT TRACES
         nodes_data = []
+        element_trace_counter = 0
+
+        # Add Model nodes
+        for model_idx, model_data in self.models.items():
+            # Determine which level this model belongs to based on transformations
+            level = 0
+
+            # Check if this model is output of any transformation
+            for trans_idx, trans_data in self.transformations.items():
+                if trans_data['OUT']:
+                    out_indices = self.resolve_references_list(trans_data['OUT'])
+                    if model_idx in out_indices:
+                        # Find the trace for this transformation and use its level + 1
+                        # (output model is one level higher than the transformation trace)
+                        for trace_idx, trans_id in trace_to_trans.items():
+                            if trans_id == trans_idx:
+                                level = node_levels.get(trace_idx, 0) + 1
+                                break
+                        break
+
+            # Get metamodel name
+            mm_name = 'Unknown'
+            if model_data['conformsTo']:
+                mm_idx = self.resolve_reference(model_data['conformsTo'])
+                if mm_idx in self.nodes:
+                    mm_name = self.nodes[mm_idx].get('name', 'Unknown')
+
+            nodes_data.append({
+                'id': f'model_{model_idx}',
+                'name': model_data['name'],
+                'type': 'model',
+                'metamodel': mm_name,
+                'level': level
+            })
+
+        # Add TraceModel nodes
         for trace_idx, trace_data in self.trace_models.items():
             trans_idx = trace_to_trans.get(trace_idx)
             trans_name = self.transformations[trans_idx]['name'] if trans_idx else 'Unknown'
 
+            # Get input and output models for this transformation
+            input_models = []
+            output_models = []
+            if trans_idx:
+                trans_data = self.transformations[trans_idx]
+                if trans_data['IN']:
+                    in_indices = self.resolve_references_list(trans_data['IN'])
+                    input_models = [self.nodes[i].get('name', 'Unknown') for i in in_indices if i in self.nodes]
+                if trans_data['OUT']:
+                    out_indices = self.resolve_references_list(trans_data['OUT'])
+                    output_models = [self.nodes[i].get('name', 'Unknown') for i in out_indices if i in self.nodes]
+
             # Get node level
             level = node_levels.get(trace_idx, 0)
 
+            # Count attribute-level traces
+            attr_traces = 0
+            element_traces = 0
+            for rule in trace_data['traced_rules']:
+                for link in rule['trace_links']:
+                    if isinstance(link, dict):
+                        if link.get('sourceAttribute') or link.get('targetAttribute'):
+                            attr_traces += 1
+                        else:
+                            element_traces += 1
+                    else:
+                        element_traces += 1
+
             nodes_data.append({
-                'id': str(trace_idx),
+                'id': f'trace_{trace_idx}',
                 'name': trace_data['name'],
+                'type': 'trace',
                 'transformation': trans_name,
+                'input_models': input_models,
+                'output_models': output_models,
                 'num_rules': len(trace_data['traced_rules']),
+                'num_element_traces': element_traces,
+                'num_attribute_traces': attr_traces,
+                'traced_rules': trace_data['traced_rules'],
                 'level': level,
                 'version': trace_data.get('version', '')
             })
 
-        # Build links data (transformation flow between levels)
+        # Add Element-Level Trace Link nodes
+        # These are extracted from TraceModel's traced_rules
+        element_trace_map = {}  # Map element trace ID to its data
+
+        for trace_idx, trace_data in self.trace_models.items():
+            trans_idx = trace_to_trans.get(trace_idx)
+            level = node_levels.get(trace_idx, 0)
+
+            # Get input and output model indices for this transformation
+            input_model_indices = []
+            output_model_indices = []
+            if trans_idx:
+                trans_data = self.transformations[trans_idx]
+                if trans_data['IN']:
+                    input_model_indices = self.resolve_references_list(trans_data['IN'])
+                if trans_data['OUT']:
+                    output_model_indices = self.resolve_references_list(trans_data['OUT'])
+
+            # Extract element trace links from traced rules
+            for rule in trace_data['traced_rules']:
+                for link in rule['trace_links']:
+                    if isinstance(link, dict) and (link.get('sourceElementPath') or link.get('targetElementPath')):
+                        # Create unique ID for this element trace
+                        element_trace_id = f'element_trace_{trace_idx}_{element_trace_counter}'
+                        element_trace_counter += 1
+
+                        # Determine if this is attribute-level or element-level
+                        is_attribute_trace = bool(link.get('sourceAttribute') or link.get('targetAttribute'))
+
+                        element_trace_data = {
+                            'id': element_trace_id,
+                            'name': link.get('name', 'Unnamed'),
+                            'type': 'element_trace',
+                            'trace_type': 'attribute' if is_attribute_trace else 'element',
+                            'sourceElementPath': link.get('sourceElementPath', ''),
+                            'targetElementPath': link.get('targetElementPath', ''),
+                            'sourceAttribute': link.get('sourceAttribute', ''),
+                            'targetAttribute': link.get('targetAttribute', ''),
+                            'linkType': link.get('linkType', ''),
+                            'level': level,
+                            'parent_trace': trace_data['name']
+                        }
+
+                        nodes_data.append(element_trace_data)
+
+                        # Store mapping for link creation
+                        element_trace_map[element_trace_id] = {
+                            'data': element_trace_data,
+                            'input_models': input_model_indices,
+                            'output_models': output_model_indices
+                        }
+
+        # Build links data - connecting Models, Traces, and Element Traces
         links_data = []
-        if dependencies:
-            for source_idx, target_indices in dependencies.items():
-                for target_idx in target_indices:
+
+        # Create links: Input Model → Trace → Output Model
+        for trace_idx, trans_idx in trace_to_trans.items():
+            trans_data = self.transformations[trans_idx]
+
+            # Get input models for this transformation
+            if trans_data['IN']:
+                in_indices = self.resolve_references_list(trans_data['IN'])
+                for in_idx in in_indices:
+                    # Link: Input Model → Trace
                     links_data.append({
-                        'source': str(source_idx),
-                        'target': str(target_idx),
-                        'type': 'flow'
+                        'source': f'model_{in_idx}',
+                        'target': f'trace_{trace_idx}',
+                        'type': 'model_to_trace'
                     })
+
+            # Get output models for this transformation
+            if trans_data['OUT']:
+                out_indices = self.resolve_references_list(trans_data['OUT'])
+                for out_idx in out_indices:
+                    # Link: Trace → Output Model
+                    links_data.append({
+                        'source': f'trace_{trace_idx}',
+                        'target': f'model_{out_idx}',
+                        'type': 'trace_to_model'
+                    })
+
+        # Create links for Element Traces: Input Model → Element Trace → Output Model
+        for element_trace_id, element_info in element_trace_map.items():
+            input_models = element_info['input_models']
+            output_models = element_info['output_models']
+
+            # Link from input models to element trace
+            for in_idx in input_models:
+                links_data.append({
+                    'source': f'model_{in_idx}',
+                    'target': element_trace_id,
+                    'type': 'model_to_element_trace'
+                })
+
+            # Link from element trace to output models
+            for out_idx in output_models:
+                links_data.append({
+                    'source': element_trace_id,
+                    'target': f'model_{out_idx}',
+                    'type': 'element_trace_to_model'
+                })
 
         # Build ancestor links (version evolution within same transformation)
         ancestor_links = []
@@ -280,8 +464,8 @@ class GlobalTraceGeneratorD3:
                 ancestor_idx = self.resolve_reference(trace_data['ancestor'])
                 if ancestor_idx is not None:
                     ancestor_links.append({
-                        'source': str(ancestor_idx),
-                        'target': str(trace_idx),
+                        'source': f'trace_{ancestor_idx}',
+                        'target': f'trace_{trace_idx}',
                         'type': 'evolution'
                     })
 
@@ -293,62 +477,104 @@ class GlobalTraceGeneratorD3:
     <title>Global Trace Visualization - D3.js</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
+        :root {{
+            --bg-primary: #f5f5f5;
+            --bg-secondary: white;
+            --bg-graph: #fafafa;
+            --text-primary: #333;
+            --text-secondary: #666;
+            --border-color: #ddd;
+            --shadow: rgba(0,0,0,0.1);
+            --link-color: #999;
+            --link-hover: #333;
+            --node-stroke: #fff;
+            --tooltip-bg: rgba(0, 0, 0, 0.9);
+            --tooltip-text: white;
+        }}
+
+        body.dark-mode {{
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2d2d2d;
+            --bg-graph: #242424;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --border-color: #444;
+            --shadow: rgba(0,0,0,0.5);
+            --link-color: #888;
+            --link-hover: #ccc;
+            --node-stroke: #2d2d2d;
+            --tooltip-bg: rgba(255, 255, 255, 0.95);
+            --tooltip-text: #1a1a1a;
+        }}
+
         body {{
             margin: 0;
             padding: 20px;
             font-family: Arial, sans-serif;
-            background-color: #f5f5f5;
+            background-color: var(--bg-primary);
+            transition: background-color 0.3s ease;
         }}
 
         #container {{
-            background-color: white;
+            background-color: var(--bg-secondary);
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px var(--shadow);
             padding: 20px;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
         }}
 
         h1 {{
             text-align: center;
-            color: #333;
+            color: var(--text-primary);
             margin-top: 0;
+            transition: color 0.3s ease;
         }}
 
         .source-info {{
             text-align: center;
-            color: #666;
+            color: var(--text-secondary);
             font-size: 14px;
             margin-bottom: 15px;
             font-style: italic;
+            transition: color 0.3s ease;
         }}
 
         #graph {{
-            border: 1px solid #ddd;
+            border: 1px solid var(--border-color);
             border-radius: 4px;
-            background-color: #fafafa;
+            background-color: var(--bg-graph);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }}
 
         .link {{
-            stroke: #999;
+            stroke: var(--link-color);
             stroke-opacity: 0.6;
             stroke-width: 2px;
             fill: none;
             marker-end: url(#arrowhead);
+            transition: stroke 0.3s ease;
         }}
 
         .link:hover {{
-            stroke: #333;
+            stroke: var(--link-hover);
             stroke-opacity: 1;
             stroke-width: 3px;
         }}
 
-        .node circle {{
-            stroke: #fff;
+        .node circle, .node rect, .node ellipse, .node path {{
+            stroke: var(--node-stroke);
             stroke-width: 3px;
             cursor: move;
+            transition: stroke 0.3s ease;
         }}
 
-        .node:hover circle {{
+        .node:hover circle, .node:hover rect, .node:hover ellipse, .node:hover path {{
             stroke-width: 5px;
+        }}
+
+        .node rect {{
+            rx: 5;
+            ry: 5;
         }}
 
         .node text {{
@@ -356,25 +582,31 @@ class GlobalTraceGeneratorD3:
             pointer-events: none;
             text-anchor: middle;
             font-weight: bold;
+            fill: var(--text-primary);
+            transition: fill 0.3s ease;
         }}
 
         .tooltip {{
             position: absolute;
-            padding: 10px;
-            background-color: rgba(0, 0, 0, 0.8);
-            color: white;
-            border-radius: 4px;
+            padding: 12px;
+            background-color: var(--tooltip-bg);
+            color: var(--tooltip-text);
+            border-radius: 6px;
             pointer-events: none;
             font-size: 12px;
             opacity: 0;
-            transition: opacity 0.3s;
+            transition: opacity 0.3s, background-color 0.3s ease, color 0.3s ease;
+            max-width: 400px;
+            box-shadow: 0 4px 6px var(--shadow);
+            z-index: 1000;
         }}
 
         .legend {{
             margin-top: 20px;
             text-align: center;
             font-size: 14px;
-            color: #666;
+            color: var(--text-secondary);
+            transition: color 0.3s ease;
         }}
 
         .legend-item {{
@@ -405,10 +637,40 @@ class GlobalTraceGeneratorD3:
             color: white;
             cursor: pointer;
             font-size: 14px;
+            line-height: 1.4;
+            min-height: 36px;
+            vertical-align: middle;
+            transition: background-color 0.3s ease, transform 0.1s ease;
         }}
 
         button:hover {{
             background-color: #45a049;
+            transform: translateY(-1px);
+        }}
+
+        button:active {{
+            transform: translateY(0);
+        }}
+
+        #darkModeToggle {{
+            background-color: #666;
+            padding: 8px 16px;
+            font-size: 14px;
+            line-height: 1.4;
+            min-height: 36px;
+        }}
+
+        #darkModeToggle:hover {{
+            background-color: #555;
+        }}
+
+        body.dark-mode #darkModeToggle {{
+            background-color: #f0f0f0;
+            color: #1a1a1a;
+        }}
+
+        body.dark-mode #darkModeToggle:hover {{
+            background-color: #e0e0e0;
         }}
     </style>
 </head>
@@ -419,6 +681,7 @@ class GlobalTraceGeneratorD3:
         <div class="controls">
             <button onclick="resetPositions()">Reset Positions</button>
             <button onclick="centerGraph()">Center View</button>
+            <button id="darkModeToggle" onclick="toggleDarkMode()">🌙 Dark Mode</button>
         </div>
         <svg id="graph"></svg>
         <div class="legend" id="legend">
@@ -455,11 +718,19 @@ class GlobalTraceGeneratorD3:
                 .text(`Level ${{i}} (L${{i}})`);
         }}
 
+        // Add shape legend
+        legend.append("div").attr("class", "legend-item").style("margin-top", "10px")
+            .html('⬭ Models (Ellipses)');
+        legend.append("div").attr("class", "legend-item")
+            .html('⬜ Trace Models (Rectangles)');
+        legend.append("div").attr("class", "legend-item")
+            .html('◆ Element Traces (Diamonds)');
+
         // Add link legend
         legend.append("div").attr("class", "legend-item").style("margin-top", "10px")
-            .html('━━ Transformation Flow (Between Levels)');
+            .html('━━ Transformation Flow');
         legend.append("div").attr("class", "legend-item")
-            .html('<span style="color: #0066cc">┅┅</span> Version Evolution (Within Same Transformation)');
+            .html('<span style="color: #0066cc">┅┅</span> Version Evolution');
 
         // Setup
         const width = window.innerWidth - 80;
@@ -493,11 +764,20 @@ class GlobalTraceGeneratorD3:
 
         const g = svg.append("g");
 
+        // Calculate level positions - arrange left to right
+        const levels = [...new Set(nodes.map(d => d.level))].sort((a, b) => a - b);
+        const levelWidth = width / (levels.length + 1);
+        const levelPositions = {{}};
+        levels.forEach((level, i) => {{
+            levelPositions[level] = (i + 1) * levelWidth;
+        }});
+
         // Force simulation (use all links for layout)
         const simulation = d3.forceSimulation(nodes)
             .force("link", d3.forceLink(allLinks).id(d => d.id).distance(150))
             .force("charge", d3.forceManyBody().strength(-500))
-            .force("center", d3.forceCenter(width / 2, height / 2))
+            .force("x", d3.forceX(d => levelPositions[d.level]).strength(0.5))
+            .force("y", d3.forceY(height / 2).strength(0.1))
             .force("collision", d3.forceCollide().radius(50));
 
         // Dependency links (solid)
@@ -528,9 +808,35 @@ class GlobalTraceGeneratorD3:
                 .on("drag", dragged)
                 .on("end", dragended));
 
-        node.append("circle")
-            .attr("r", 20)
-            .style("fill", d => colorScale(d.level));
+        // Render different shapes based on type
+        node.each(function(d) {{
+            const nodeGroup = d3.select(this);
+            if (d.type === 'model') {{
+                // Models as ellipses
+                nodeGroup.append("ellipse")
+                    .attr("rx", 40)
+                    .attr("ry", 25)
+                    .style("fill", d => colorScale(d.level));
+            }} else if (d.type === 'trace') {{
+                // Traces as rectangles
+                nodeGroup.append("rect")
+                    .attr("width", 60)
+                    .attr("height", 40)
+                    .attr("x", -30)
+                    .attr("y", -20)
+                    .style("fill", d => colorScale(d.level))
+                    .style("rx", 5)
+                    .style("ry", 5);
+            }} else if (d.type === 'element_trace') {{
+                // Element traces as diamonds
+                const size = 25;
+                nodeGroup.append("path")
+                    .attr("d", `M 0,${{-size}} L ${{size}},0 L 0,${{size}} L ${{-size}},0 Z`)
+                    .style("fill", d => colorScale(d.level))
+                    .style("stroke", "#fff")
+                    .style("stroke-width", 3);
+            }}
+        }});
 
         node.append("text")
             .attr("dy", 35)
@@ -540,15 +846,87 @@ class GlobalTraceGeneratorD3:
         const tooltip = d3.select("#tooltip");
 
         node.on("mouseenter", (event, d) => {{
+            let tooltipHTML = '';
+
+            if (d.type === 'model') {{
+                // Model tooltip
+                tooltipHTML = `
+                    <strong>${{d.name}}</strong><br/>
+                    <div style="margin-top: 3px;">Type: Model</div>
+                    <div>Metamodel: ${{d.metamodel}}</div>
+                    <div>Level: L${{d.level}}</div>
+                `;
+            }} else if (d.type === 'element_trace') {{
+                // Element trace tooltip
+                const traceTypeLabel = d.trace_type === 'attribute' ? '📊 Attribute-Level' : '🔗 Element-Level';
+                tooltipHTML = `
+                    <strong>${{d.name}}</strong><br/>
+                    <div style="margin-top: 3px;">Type: ${{traceTypeLabel}} Trace</div>
+                    <div>Parent: ${{d.parent_trace}}</div>
+                    ${{d.sourceElementPath ? `<div style="margin-top: 3px; font-size: 11px;">From: ${{d.sourceElementPath}}</div>` : ''}}
+                    ${{d.sourceAttribute ? `<div style="font-size: 11px;">  ↳ ${{d.sourceAttribute}}</div>` : ''}}
+                    ${{d.targetElementPath ? `<div style="margin-top: 3px; font-size: 11px;">To: ${{d.targetElementPath}}</div>` : ''}}
+                    ${{d.targetAttribute ? `<div style="font-size: 11px;">  ↳ ${{d.targetAttribute}}</div>` : ''}}
+                    ${{d.linkType ? `<div style="margin-top: 3px;">Link Type: ${{d.linkType}}</div>` : ''}}
+                    <div>Level: L${{d.level}}</div>
+                `;
+            }} else {{
+                // Trace tooltip
+                // Build detailed trace info
+                let detailsHTML = '';
+                if (d.traced_rules && d.traced_rules.length > 0) {{
+                    detailsHTML = '<hr style="margin: 5px 0; border-color: #555;"/>';
+                    d.traced_rules.forEach(rule => {{
+                        if (rule.trace_links && rule.trace_links.length > 0) {{
+                            detailsHTML += `<div style="margin-top: 5px;"><em>${{rule.name}}:</em></div>`;
+                            rule.trace_links.forEach(link => {{
+                                if (typeof link === 'object') {{
+                                    const linkName = link.name || 'Unnamed';
+                                    const linkType = link.linkType ? ` (${{link.linkType}})` : '';
+                                    detailsHTML += `<div style="margin-left: 10px; font-size: 11px;">`;
+
+                                    if (link.sourceAttribute && link.targetAttribute) {{
+                                        // Attribute-level trace
+                                        detailsHTML += `📊 ${{link.sourceAttribute}} → ${{link.targetAttribute}}${{linkType}}`;
+                                    }} else {{
+                                        // Element-level trace
+                                        detailsHTML += `🔗 ${{linkName}}${{linkType}}`;
+                                    }}
+                                    detailsHTML += `</div>`;
+                                }} else {{
+                                    detailsHTML += `<div style="margin-left: 10px; font-size: 11px;">🔗 ${{link}}</div>`;
+                                }}
+                            }});
+                        }}
+                    }});
+                }}
+
+                // Build input/output models display
+                let ioHTML = '';
+                if (d.input_models && d.input_models.length > 0) {{
+                    ioHTML += `<div style="margin-top: 3px;">📥 Input: ${{d.input_models.join(', ')}}</div>`;
+                }}
+                if (d.output_models && d.output_models.length > 0) {{
+                    ioHTML += `<div style="margin-top: 3px;">📤 Output: ${{d.output_models.join(', ')}}</div>`;
+                }}
+
+                tooltipHTML = `
+                    <strong>${{d.name}}</strong><br/>
+                    <div style="margin-top: 3px;">Type: TraceModel</div>
+                    ${{d.version ? `<div>Version: ${{d.version}}</div>` : ''}}
+                    <div>Transformation: ${{d.transformation}}</div>
+                    ${{ioHTML}}
+                    <div style="margin-top: 3px;">Traced Rules: ${{d.num_rules}}</div>
+                    ${{d.num_element_traces ? `<div>Element Traces: ${{d.num_element_traces}}</div>` : ''}}
+                    ${{d.num_attribute_traces ? `<div>Attribute Traces: ${{d.num_attribute_traces}}</div>` : ''}}
+                    <div>Level: L${{d.level}}</div>
+                    ${{detailsHTML}}
+                `;
+            }}
+
             tooltip
                 .style("opacity", 1)
-                .html(`
-                    <strong>${{d.name}}</strong><br/>
-                    ${{d.version ? `Version: ${{d.version}}<br/>` : ''}}
-                    Transformation: ${{d.transformation}}<br/>
-                    Traced Rules: ${{d.num_rules}}<br/>
-                    Level: L${{d.level}}
-                `)
+                .html(tooltipHTML)
                 .style("left", (event.pageX + 10) + "px")
                 .style("top", (event.pageY - 10) + "px");
         }})
@@ -606,6 +984,40 @@ class GlobalTraceGeneratorD3:
                 d3.zoomIdentity.translate(width / 2, height / 2).scale(1).translate(-width / 2, -height / 2)
             );
         }}
+
+        // Dark mode toggle
+        function toggleDarkMode() {{
+            const body = document.body;
+            const button = document.getElementById('darkModeToggle');
+            const isDarkMode = body.classList.toggle('dark-mode');
+
+            // Update button text
+            button.textContent = isDarkMode ? '☀️ Light Mode' : '🌙 Dark Mode';
+
+            // Save preference to localStorage
+            localStorage.setItem('darkMode', isDarkMode ? 'enabled' : 'disabled');
+
+            // Update arrowhead marker color
+            updateArrowheadColor(isDarkMode);
+        }}
+
+        // Update arrowhead marker to match theme
+        function updateArrowheadColor(isDarkMode) {{
+            const arrowColor = isDarkMode ? '#888' : '#999';
+            d3.select('#arrowhead path').attr('fill', arrowColor);
+        }}
+
+        // Load dark mode preference on page load
+        window.addEventListener('DOMContentLoaded', () => {{
+            const darkMode = localStorage.getItem('darkMode');
+            const button = document.getElementById('darkModeToggle');
+
+            if (darkMode === 'enabled') {{
+                document.body.classList.add('dark-mode');
+                button.textContent = '☀️ Light Mode';
+                updateArrowheadColor(true);
+            }}
+        }});
     </script>
 </body>
 </html>
@@ -615,6 +1027,7 @@ class GlobalTraceGeneratorD3:
     def generate(self, source_filename: str) -> str:
         """Main generation method"""
         self.parse_nodes()
+        self.extract_models()  # Extract Model nodes
         self.extract_trace_models()
         self.extract_transformation_executions()
         self.extract_transformations()
