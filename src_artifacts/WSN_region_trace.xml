@@ -39,6 +39,7 @@
 
   <!-- [10] L0 Input: GlobalView Model (WSN View) -->
   <nodes xmi:type="mpm_trace:Model" name="GlobalView"
+         LevelOfAbstraction="PIM"
          conformsTo="//@nodes.4"
          representedAs="//@nodes.7"
          associatedWith="//@nodes.8"
@@ -68,6 +69,7 @@
 
   <!-- [14] L0 Output: Arduino PSM -->
   <nodes xmi:type="mpm_trace:Model" name="Arduino_PSM"
+         LevelOfAbstraction="PSM"
          conformsTo="//@nodes.5"
          representedAs="//@nodes.7"
          associatedWith="//@nodes.9"
@@ -75,6 +77,7 @@
 
   <!-- [15] L0 Output: RIOT PSM -->
   <nodes xmi:type="mpm_trace:Model" name="RIOT_PSM"
+         LevelOfAbstraction="PSM"
          conformsTo="//@nodes.5"
          representedAs="//@nodes.7"
          associatedWith="//@nodes.9"
@@ -82,6 +85,7 @@
 
   <!-- [16] L0 Output / L2 Input: Contiki PSM -->
   <nodes xmi:type="mpm_trace:Model" name="Contiki_PSM"
+         LevelOfAbstraction="PSM"
          conformsTo="//@nodes.5"
          representedAs="//@nodes.7"
          associatedWith="//@nodes.9"
@@ -90,51 +94,44 @@
   <!-- ========== L0 EXECUTIONS ========== -->
 
   <!-- [17] L0 Execution: GenArduino -->
-  <nodes xmi:type="mpm_trace:TransformationExecution" name="Exec_GenArduino_v1"
+  <nodes xmi:type="mpm_trace:TransformationExecution" name="Exec_GenArduino"
          generates="//@nodes.20"/>
 
   <!-- [18] L0 Execution: GenRIOT -->
-  <nodes xmi:type="mpm_trace:TransformationExecution" name="Exec_GenRIOT_v1"
+  <nodes xmi:type="mpm_trace:TransformationExecution" name="Exec_GenRIOT"
          generates="//@nodes.21"/>
 
   <!-- [19] L0 Execution: GenContiki -->
-  <nodes xmi:type="mpm_trace:TransformationExecution" name="Exec_GenContiki_v1"
+  <nodes xmi:type="mpm_trace:TransformationExecution" name="Exec_GenContiki"
          generates="//@nodes.22"/>
 
   <!-- ========== L0 TRACES (High-level for all, detailed for Contiki) ========== -->
 
   <!-- [20] L0 Trace: GlobalView → Arduino PSM (HIGH-LEVEL ONLY - No detailed traces) -->
-  <nodes xmi:type="mpm_trace:TraceModel" name="Trace_GenArduino_v1"
+  <nodes xmi:type="mpm_trace:TraceModel" name="Trace_GenArduino"
          conformsTo="//@nodes.3"
          version="1"/>
 
   <!-- [21] L0 Trace: GlobalView → RIOT PSM (HIGH-LEVEL ONLY - No detailed traces) -->
-  <nodes xmi:type="mpm_trace:TraceModel" name="Trace_GenRIOT_v1"
+  <nodes xmi:type="mpm_trace:TraceModel" name="Trace_GenRIOT"
          conformsTo="//@nodes.3"
          version="1"/>
 
-  <!-- [22] L0 Trace: GlobalView → Contiki PSM (DETAILED WITH ELEMENT/ATTRIBUTE) -->
-  <nodes xmi:type="mpm_trace:TraceModel" name="Trace_GenContiki_v1"
+  <!-- [22] L0 Trace: GlobalView → Contiki PSM (DETAILED WITH TRACE LINKS) -->
+  <nodes xmi:type="mpm_trace:TraceModel" name="Trace_GenContiki"
          conformsTo="//@nodes.3"
          version="1">
     <contains name="MapRegionToContiki">
-      <intents name="PlatformMapping">
-        <params name="targetPlatform = Contiki"/>
-        <params name="networkTopology = mesh"/>
-      </intents>
-
-      <!-- ELEMENT-LEVEL trace: Region -> ContikiNetworkConfig -->
+      <!-- Trace link: Region class -> ContikiNetworkConfig class -->
       <traceLinks name="Region -> ContikiNetworkConfig"
                   sourceElementPath="GlobalView::Topology::Region"
                   targetElementPath="Contiki_PSM::NetworkConfig::ContikiNetworkConfig"
                   linkType="transforms"/>
 
-      <!-- ATTRIBUTE-LEVEL trace: diameter -> diameter -->
-      <traceLinks name="diameter -> diameter"
-                  sourceElementPath="GlobalView::Topology::Region"
-                  targetElementPath="Contiki_PSM::NetworkConfig::ContikiNetworkConfig"
-                  sourceAttribute="diameter"
-                  targetAttribute="diameter"
+      <!-- Trace link: RegionDiameter class -> NetworkDiameter class -->
+      <traceLinks name="RegionDiameter -> NetworkDiameter"
+                  sourceElementPath="GlobalView::Topology::Region::RegionDiameter"
+                  targetElementPath="Contiki_PSM::NetworkConfig::ContikiNetworkConfig::NetworkDiameter"
                   linkType="copies"/>
     </contains>
   </nodes>
@@ -163,69 +160,57 @@
 
   <!-- [26] L2 Output: Arduino C Code -->
   <nodes xmi:type="mpm_trace:Model" name="Arduino_C_Code"
+         LevelOfAbstraction="Code"
          conformsTo="//@nodes.6"
          associatedWith="//@nodes.9"/>
 
   <!-- [27] L2 Output: RIOT C Code -->
   <nodes xmi:type="mpm_trace:Model" name="RIOT_C_Code"
+         LevelOfAbstraction="Code"
          conformsTo="//@nodes.6"
          associatedWith="//@nodes.9"/>
 
   <!-- [28] L2 Output: Contiki C Code -->
   <nodes xmi:type="mpm_trace:Model" name="Contiki_C_Code"
+         LevelOfAbstraction="Code"
          conformsTo="//@nodes.6"
          associatedWith="//@nodes.9"/>
 
   <!-- ========== L2 EXECUTIONS ========== -->
 
   <!-- [29] L2 Execution: Arduino → C Code -->
-  <nodes xmi:type="mpm_trace:TransformationExecution" name="Exec_Arduino2C_v1"
+  <nodes xmi:type="mpm_trace:TransformationExecution" name="Exec_Arduino2C"
          generates="//@nodes.32"/>
 
   <!-- [30] L2 Execution: RIOT → C Code -->
-  <nodes xmi:type="mpm_trace:TransformationExecution" name="Exec_RIOT2C_v1"
+  <nodes xmi:type="mpm_trace:TransformationExecution" name="Exec_RIOT2C"
          generates="//@nodes.33"/>
 
   <!-- [31] L2 Execution: Contiki → C Code -->
-  <nodes xmi:type="mpm_trace:TransformationExecution" name="Exec_Contiki2C_v1"
+  <nodes xmi:type="mpm_trace:TransformationExecution" name="Exec_Contiki2C"
          generates="//@nodes.34"/>
 
   <!-- ========== L2 TRACES (High-level for all, detailed for Contiki) ========== -->
 
   <!-- [32] L2 Trace: Arduino PSM → C Code (HIGH-LEVEL ONLY - No detailed traces) -->
-  <nodes xmi:type="mpm_trace:TraceModel" name="Trace_Arduino2C_v1"
+  <nodes xmi:type="mpm_trace:TraceModel" name="Trace_Arduino2C"
          conformsTo="//@nodes.3"
          version="1"/>
 
   <!-- [33] L2 Trace: RIOT PSM → C Code (HIGH-LEVEL ONLY - No detailed traces) -->
-  <nodes xmi:type="mpm_trace:TraceModel" name="Trace_RIOT2C_v1"
+  <nodes xmi:type="mpm_trace:TraceModel" name="Trace_RIOT2C"
          conformsTo="//@nodes.3"
          version="1"/>
 
-  <!-- [34] L2 Trace: Contiki PSM → C Code (DETAILED WITH ELEMENT/ATTRIBUTE) -->
-  <nodes xmi:type="mpm_trace:TraceModel" name="Trace_Contiki2C_v1"
+  <!-- [34] L2 Trace: Contiki PSM → C Code (DETAILED WITH TRACE LINK) -->
+  <nodes xmi:type="mpm_trace:TraceModel" name="Trace_Contiki2C"
          conformsTo="//@nodes.3"
          version="1">
     <contains name="GenerateContikiNetworkCode">
-      <intents name="DeriveRoutingLimit">
-        <params name="language = C"/>
-        <params name="template = contiki_network.c"/>
-        <params name="transformationRule = 10m per hop (Contiki mesh routing standard)"/>
-        <params name="calculation = MAX_HOP_COUNT = ceil(diameter / 10)"/>
-      </intents>
-
-      <!-- ELEMENT-LEVEL trace: ContikiNetworkConfig -> network_config struct -->
-      <traceLinks name="ContikiNetworkConfig -> network_config"
-                  sourceElementPath="Contiki_PSM::NetworkConfig::ContikiNetworkConfig"
-                  targetElementPath="Contiki_C_Code::Structs::network_config"
-                  linkType="generates"/>
-
-      <!-- ATTRIBUTE-LEVEL trace: diameter -> MAX_HOP_COUNT (calculated) -->
-      <traceLinks name="diameter -> MAX_HOP_COUNT"
-                  sourceElementPath="Contiki_PSM::NetworkConfig::ContikiNetworkConfig"
-                  targetElementPath="Contiki_C_Code::Constants::MAX_HOP_COUNT"
-                  sourceAttribute="diameter"
-                  targetAttribute="value"
+      <!-- Trace link: NetworkDiameter class -> MAX_HOP_COUNT constant -->
+      <traceLinks name="NetworkDiameter -> MAX_HOP_COUNT"
+                  sourceElementPath="Contiki_PSM::NetworkConfig::ContikiNetworkConfig::NetworkDiameter"
+                  targetElementPath="Contiki_C_Code::contiki_network.c::MAX_HOP_COUNT (line 12)"
                   linkType="derives"/>
     </contains>
   </nodes>

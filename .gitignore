@@ -148,6 +148,3 @@ cython_debug/
 # Project-specific
 *.xml.bak
 *.xml~
-
-# Generated visualizations
-output_g_trace/

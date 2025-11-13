@@ -1,44 +1,41 @@
-# Wireless Sensor Network - Multi-Platform Integration Example
+# Wireless Sensor Network - Multi-Platform Example
 
 ## Overview
 
-This example demonstrates a **Wireless Sensor Network (WSN)** system with **3 transformation levels**, **System Diagram integration**, **Model-to-Text code generation**, and **version tracking**.
+This example demonstrates a **Wireless Sensor Network (WSN)** system with **2 transformation levels**, tracing from an abstract global view through platform-specific models to executable C code.
 
-**File**: [src_artifacts/wireless_sensor_network.xml](src_artifacts/wireless_sensor_network.xml)
+**File**: [src_artifacts/WSN_region_trace.xml](src_artifacts/WSN_region_trace.xml)
 
 ---
 
 ## System Goal
 
-Transform a global view of a wireless sensor network into platform-specific C code through system integration:
+Transform a global view of a wireless sensor network into platform-specific C code:
 1. **Level 0 (M2M)**: GlobalView → Platform-Specific Models (Arduino, RIOT, Contiki)
-2. **Level 1 (M2M)**: PSMs → System Diagram (Multi-platform integration)
-3. **Level 2 (M2T)**: System Diagram → C Code (Platform-specific code generation)
+2. **Level 2 (M2T)**: PSMs → C Code (Platform-specific code generation)
 
 ---
 
 ## Architecture Overview
 
 ```
-GlobalView (Abstract sensor network)
+GlobalView (PIM - Platform Independent Model)
     ↓ L0 (Model-to-Model)
-    ├─→ Arduino_PSM
-    ├─→ RIOT_PSM
-    └─→ Contiki_PSM
-    ↓ L1 (Integration)
-SystemDiagram (Multi-platform mesh network)
+    ├─→ Arduino_PSM (PSM - Platform Specific Model)
+    ├─→ RIOT_PSM (PSM)
+    └─→ Contiki_PSM (PSM)
     ↓ L2 (Model-to-Text)
-    ├─→ Arduino_C_Code
-    ├─→ RIOT_C_Code
-    └─→ Contiki_C_Code
+    ├─→ Arduino_C_Code (Code)
+    ├─→ RIOT_C_Code (Code)
+    └─→ Contiki_C_Code (Code)
 ```
 
 **Key Features**:
-- **9 traces total** (with 3 ancestor links)
-- **3 transformation levels**: M2M → Integration → M2T
-- **System Diagram** integrates all platforms
-- **Only C code** (simplified, consistent)
+- **6 TraceModels total**: 3 at L0 (GlobalView→PSM), 3 at L2 (PSM→Code)
+- **2 transformation levels**: M2M → M2T
 - **3 IoT platforms**: Arduino, RIOT OS, Contiki OS
+- **Detailed trace links**: Focus on Contiki path to demonstrate element-level traceability
+- **Color-coded by abstraction level**: Purple (PIM), Green (PSM), Yellow (Code), Blue (TraceModels)
 
 ---
 
@@ -46,300 +43,382 @@ SystemDiagram (Multi-platform mesh network)
 
 ### **Level 0: GlobalView → Platform-Specific Models (M2M)**
 
-**Input**: `GlobalView` - Abstract specification of sensor network
+**Input**: `GlobalView` (PIM) - Abstract specification of sensor network with:
+- Topology information
+- Region definition with diameter (100 meters)
 
-#### Arduino Platform (2 versions)
+#### Arduino Platform
 
 **Transformation**: `GenArduino`
+**TraceModel**: `Trace_GenArduino` (HIGH-LEVEL only)
+**Output**: `Arduino_PSM` (PSM)
 
-**Version 1**:
-- **Trace**: `Trace_GenArduino_v1` (version="1")
-- **Intent**: NetworkConfiguration with WiFi
-- **Links**: SensorNode → WiFiBoard
-
-**Version 2** (ancestor: v1):
-- **Trace**: `Trace_GenArduino_v2` (version="2", ancestor → v1)
-
-**Output**: `Arduino_PSM`
-
-#### RIOT Platform (2 versions)
+#### RIOT Platform
 
 **Transformation**: `GenRIOT`
+**TraceModel**: `Trace_GenRIOT` (HIGH-LEVEL only)
+**Output**: `RIOT_PSM` (PSM)
 
-**Version 1**: `Trace_GenRIOT_v1` (version="1")
-
-**Version 2**: `Trace_GenRIOT_v2` (version="2", ancestor → v1)
-
-**Output**: `RIOT_PSM`
-
-#### Contiki Platform (1 version)
+#### Contiki Platform (DETAILED TRACING)
 
 **Transformation**: `GenContiki`
+**TraceModel**: `Trace_GenContiki` (DETAILED with trace links)
+**Output**: `Contiki_PSM` (PSM)
 
-**Version 1**: `Trace_GenContiki_v1` (version="1")
+**Trace Links** (Class-level tracing):
 
-**Output**: `Contiki_PSM`
+1. **Region → ContikiNetworkConfig**
+   - **From**: `GlobalView::Topology::Region` (class)
+   - **To**: `Contiki_PSM::NetworkConfig::ContikiNetworkConfig` (class)
+   - **Type**: `transforms`
+   - **Meaning**: The abstract Region concept is transformed into a platform-specific network configuration for Contiki
 
----
-
-### **Level 1: PSMs → System Diagram (Integration)**
-
-**Input**: `Arduino_PSM`, `RIOT_PSM`, `Contiki_PSM`
-
-**Transformation**: `PSM2SystemDiagram` (Model-to-Model)
-
-**Trace**: `Trace_PSM2SD_v1` (version="1")
-- **Intent**: SystemIntegration with mesh topology
-- **Links**:
-  - Arduino_PSM → ArduinoNodes
-  - RIOT_PSM → RIOTNodes
-  - Contiki_PSM → ContikiNodes
-
-**Output**: `SystemDiagram` (integrated multi-platform network)
-
-**Purpose**: This level integrates all three platform-specific models into a single system diagram, representing the complete sensor network with nodes from all platforms working together in a mesh topology.
+2. **RegionDiameter → NetworkDiameter**
+   - **From**: `GlobalView::Topology::Region::RegionDiameter` (class)
+   - **To**: `Contiki_PSM::NetworkConfig::ContikiNetworkConfig::NetworkDiameter` (class)
+   - **Type**: `copies`
+   - **Meaning**: The region diameter value (100m) is copied from the global view to the Contiki PSM
 
 ---
 
-### **Level 2: System Diagram → C Code (M2T)**
+### **Level 2: PSMs → C Code (M2T)**
 
-**Input**: `SystemDiagram`
+**Inputs**: `Arduino_PSM`, `RIOT_PSM`, `Contiki_PSM`
 
-#### Arduino C Code (2 versions)
+#### Arduino C Code
 
 **Transformation**: `Arduino2Code` (Model-to-Text)
-
-**Version 1**:
-- **Trace**: `Trace_Arduino2C_v1` (version="1")
-- **Intent**: Model2Text with C language
-- **Params**: template = arduino_sensor.c
-- **Links**: ArduinoNodes → setup(), SensorReading → loop()
-
-**Version 2** (ancestor: v1):
-- **Trace**: `Trace_Arduino2C_v2` (version="2", ancestor → v1)
-
+**TraceModel**: `Trace_Arduino2C` (HIGH-LEVEL only)
 **Output**: `Arduino_C_Code`
 
-#### RIOT C Code (1 version)
+#### RIOT C Code
 
 **Transformation**: `RIOT2Code` (Model-to-Text)
-
-**Version 1**:
-- **Trace**: `Trace_RIOT2C_v1` (version="1")
-
+**TraceModel**: `Trace_RIOT2C` (HIGH-LEVEL only)
 **Output**: `RIOT_C_Code`
 
-#### Contiki C Code (1 version)
+#### Contiki C Code (DETAILED TRACING)
 
 **Transformation**: `Contiki2Code` (Model-to-Text)
-
-**Version 1**:
-- **Trace**: `Trace_Contiki2C_v1` (version="1")
-
+**TraceModel**: `Trace_Contiki2C` (DETAILED with trace links)
 **Output**: `Contiki_C_Code`
 
----
+**Trace Link** (Class-to-code tracing with line numbers):
 
-## Three-Level Traceability
-
-### Level 0: Abstraction to Platform (M2M)
-- **Type**: Model-to-Model transformation
-- **Purpose**: Generate platform-specific models from abstract specification
-- **Metamodel**: PSMM
-- **Example**: GlobalView → Arduino_PSM (WiFi configuration)
-
-### Level 1: Multi-Platform Integration (M2M)
-- **Type**: Model-to-Model transformation
-- **Purpose**: Integrate multiple platform models into system view
-- **Metamodel**: SystemDiagramMM
-- **Example**: 3 PSMs → SystemDiagram (mesh network)
-
-### Level 2: System to Code (M2T)
-- **Type**: Model-to-Text transformation
-- **Purpose**: Generate executable C code from integrated system
-- **Metamodel**: ATL (transformation language)
-- **Example**: SystemDiagram → Arduino_C_Code (C functions)
+**NetworkDiameter → MAX_HOP_COUNT**
+- **From**: `Contiki_PSM::NetworkConfig::ContikiNetworkConfig::NetworkDiameter` (class)
+- **To**: `Contiki_C_Code::contiki_network.c::MAX_HOP_COUNT (line 12)` (C constant)
+- **Type**: `derives`
+- **Meaning**: The network diameter value (100m) is used to derive the maximum hop count constant
+- **Derivation Rule**: `MAX_HOP_COUNT = ceiling(NetworkDiameter / 10)` where 10m is the assumed hop distance in Contiki mesh routing
+- **Example**: 100m diameter → ceiling(100/10) = 10 hops
+- **What is MAX_HOP_COUNT?**: A compile-time constant (`#define MAX_HOP_COUNT 10`) that limits the maximum number of hops a packet can traverse in the mesh network, preventing infinite routing loops
 
 ---
 
-## Why System Diagram Integration?
+## Understanding Trace Links
 
-The System Diagram serves as a **crucial integration layer**:
+### What is a Trace Link?
 
-1. **Multi-Platform View**: Combines Arduino, RIOT, and Contiki into one network
-2. **System-Level Decisions**: Mesh topology, gateway configuration, routing
-3. **Realistic Scenario**: Real WSN deployments use multiple platforms
-4. **Traceability Checkpoint**: Capture how individual PSMs integrate into complete system
-5. **Code Generation Input**: Generate platform-specific code with system-level context
+A **trace link** is a relationship that captures how elements from a source model are transformed into elements in a target model. Each trace link records:
 
-**Example**: The Arduino code knows about RIOT and Contiki nodes in the system because it's generated from the SystemDiagram, not just Arduino_PSM.
+- **Source element path**: Where the element comes from (e.g., `GlobalView::Topology::Region`)
+- **Target element path**: Where it goes to (e.g., `Contiki_PSM::NetworkConfig::ContikiNetworkConfig`)
+- **Link type**: How it's transformed (`transforms`, `copies`, `generates`, `derives`)
+- **Context**: Which transformation created this link
+
+### Trace Link Types
+
+1. **transforms**: The source element is structurally transformed into the target
+   - Example: `Region → ContikiNetworkConfig` (abstract concept becomes platform-specific config)
+
+2. **copies**: The source element value is directly copied to the target
+   - Example: `RegionDiameter → NetworkDiameter` (100m value copied unchanged)
+
+3. **generates**: The source model element generates code/text in the target
+   - Example: `ContikiNetworkConfig → network_config` (PSM class generates C struct)
+
+4. **derives**: The target is calculated/derived from the source
+   - Example: `NetworkDiameter → MAX_HOP_COUNT` (100m derives to 10 hops)
+
+### Why Class-Level Tracing?
+
+This example uses **class-level tracing** (not attribute-level) because:
+- Our implementation supports element-level tracing
+- Classes represent meaningful design decisions
+- Line numbers show precise code locations
+- Easier to visualize and understand
+
+### Example: Complete Trace Chain
+
+Following the **diameter** through the system:
+
+```
+RegionDiameter (100m) [GlobalView - PIM]
+    ↓ (copies)
+NetworkDiameter (100m) [Contiki_PSM - PSM]
+    ↓ (derives via calculation: ceil(100/10) = 10)
+MAX_HOP_COUNT (10) [Contiki_C_Code line 12 - Code]
+```
+
+This shows how an abstract regional property (100m diameter) flows through platform-specific modeling and finally becomes a concrete constant in C code.
 
 ---
 
-## Version Tracking
+## Change Impact Analysis Example
 
-**Version 1 Paths** (baseline):
-- `Trace_GenArduino_v1` → `Trace_PSM2SD_v1` → `Trace_Arduino2C_v1`
-- `Trace_GenRIOT_v1` → `Trace_PSM2SD_v1` → `Trace_RIOT2C_v1`
-- `Trace_GenContiki_v1` → `Trace_PSM2SD_v1` → `Trace_Contiki2C_v1`
+The trace links enable powerful **change impact analysis** - understanding what downstream artifacts are affected when you change something upstream.
 
-**Version 2 Paths** (evolved with ancestor links):
-- `Trace_GenArduino_v2` → `Trace_PSM2SD_v1` → `Trace_Arduino2C_v2`
-- `Trace_GenRIOT_v2` → `Trace_PSM2SD_v1` → (branches to v1 code)
+### Scenario: Expanding Network Coverage
 
-All v2 traces have ancestor links to their v1 origins.
+**Change Request**: The deployment area needs to expand from 100 meters to 200 meters diameter.
+
+**Step 1: Identify the Change Location**
+- Change: `GlobalView::Topology::Region::RegionDiameter` from 100m to 200m
+
+**Step 2: Follow the Trace Links**
+
+Using our trace links, we can automatically identify all affected artifacts:
+
+1. **L0 Trace Link** (`Trace_GenContiki`):
+   - `RegionDiameter → NetworkDiameter` (copies)
+   - **Impact**: `Contiki_PSM::NetworkConfig::ContikiNetworkConfig::NetworkDiameter` will change from 100m to 200m
+
+2. **L2 Trace Link** (`Trace_Contiki2C`):
+   - `NetworkDiameter → MAX_HOP_COUNT` (derives)
+   - **Impact**: `Contiki_C_Code::contiki_network.c::MAX_HOP_COUNT` (line 12) will change from 10 to 20
+   - **Calculation**: ceiling(200m / 10m per hop) = 20 hops
+
+**Step 3: Impact Summary**
+
+| Artifact | Current Value | New Value | Change Type |
+|----------|---------------|-----------|-------------|
+| GlobalView RegionDiameter | 100m | 200m | **Manual Change** |
+| Contiki_PSM NetworkDiameter | 100m | 200m | Automatic (copies) |
+| Contiki_C_Code MAX_HOP_COUNT | 10 hops | 20 hops | Automatic (derives) |
+
+**Step 4: Actions Required**
+
+1. **Update PIM**: Change RegionDiameter in GlobalView model
+2. **Re-run transformations**:
+   - Run `GenContiki` to regenerate Contiki_PSM
+   - Run `Contiki2Code` to regenerate C code
+3. **Verify**: Confirm MAX_HOP_COUNT = 20 in generated code (line 12)
+4. **Test**: Network can now route packets across the full 200m diameter
+
+### Benefits of Trace Links for Impact Analysis
+
+✅ **Complete Impact Visibility**: Know exactly which files and lines need regeneration
+✅ **No Manual Search**: Don't need to grep through code to find diameter references
+✅ **Derivation Rules Captured**: Understand HOW values are calculated (10m per hop rule)
+✅ **Confidence in Changes**: Know all downstream effects before making the change
+✅ **Documentation**: Trace links serve as living documentation of transformation logic
+
+### Without Trace Links
+
+Without traceability, you would need to:
+- ❌ Manually search codebase for "diameter" or related terms
+- ❌ Guess which constants might be derived from diameter
+- ❌ Hope you found all affected locations
+- ❌ Rediscover the hop calculation rule each time
+- ❌ Risk missing indirect dependencies
 
 ---
 
-## Code Outputs
+## Why Focus Detailed Tracing on Contiki?
 
-From System Diagram, we generate **3 C code outputs**:
+The example shows **different levels of tracing granularity**:
 
-| **Platform** | **Output Model** | **Use Case** |
-|--------------|------------------|--------------|
-| Arduino | `Arduino_C_Code` | Arduino sketches (.ino) |
-| RIOT | `RIOT_C_Code` | RIOT OS applications |
-| Contiki | `Contiki_C_Code` | Contiki processes |
+- **Arduino & RIOT paths**: High-level TraceModels only (no detailed trace links)
+  - Demonstrates that not all transformations need detailed tracing
+  - Shows the framework supports varying granularity
 
-**All C code** for consistency and simplicity.
+- **Contiki path**: Detailed trace links at both L0 and L2
+  - **Pedagogical choice**: Demonstrates element-level traceability
+  - Shows complete chain: PIM → PSM → Code
+  - Illustrates both model-to-model and model-to-text tracing
+
+This **selective tracing** approach is realistic - in practice, you trace what matters most for your use case.
 
 ---
 
-## Trace Content Strategy
+## Abstraction Levels
 
-**Detailed Traces** (3 examples):
-1. `Trace_GenArduino_v1` - L0 platform model generation
-2. `Trace_PSM2SD_v1` - L1 multi-platform integration with 3 trace links
-3. `Trace_Arduino2C_v1` - L2 Model-to-Text with template
+The framework uses **LevelOfAbstraction** to categorize models:
 
-**Simplified Traces** (6 traces):
-- All v2 traces (showing evolution)
-- Remaining L0 and L2 traces
+### PIM (Platform Independent Model)
+- **Color**: Purple (#9C27B0)
+- **Example**: `GlobalView`
+- **Purpose**: Abstract, platform-agnostic specification
+
+### PSM (Platform Specific Model)
+- **Color**: Green (#4CAF50)
+- **Examples**: `Arduino_PSM`, `RIOT_PSM`, `Contiki_PSM`
+- **Purpose**: Platform-specific design models
+
+### Code
+- **Color**: Yellow (#FFC107)
+- **Examples**: `Arduino_C_Code`, `RIOT_C_Code`, `Contiki_C_Code`
+- **Purpose**: Executable implementation
+
+### TraceModel
+- **Color**: Blue (#2196F3)
+- **Examples**: `Trace_GenArduino`, `Trace_GenContiki`, `Trace_Contiki2C`
+- **Purpose**: Records transformation traces and trace links
+
+---
+
+## Visualization
+
+Generate the interactive D3.js visualization:
+
+```bash
+python3 generate_global_trace.py src_artifacts/WSN_region_trace.xml
+open output_g_trace/WSN_region_trace.html
+```
+
+### What You'll See
+
+**Nodes**:
+- **Ellipses**: Models (colored by abstraction level - Purple/Green/Yellow)
+- **Diamonds**: TraceModels (always blue)
+- **Rounded rectangles**: Trace Links (sized to fit their names, colored by abstraction level)
+
+**Links**:
+- **Solid gray arrows (━━)**: Transformation flow (Model → TraceModel → Model)
+- **Dashed green arrows (┅┅)**: Containment (TraceModel contains Trace Links)
+
+**Color Scheme**:
+- **Purple**: PIM (Platform Independent Models)
+- **Green**: PSM (Platform Specific Models)
+- **Yellow**: Code
+- **Blue**: TraceModels
+
+**Interactive Features**:
+- **Hover** over trace links to see full source/target paths
+- **Drag** nodes to rearrange
+- **Zoom** and pan
+- **Dark mode toggle**
+- **Auto-layout** by transformation level (left to right)
+
+---
+
+## Example Trace Link Details
+
+When you hover over a trace link in the visualization, you see:
+
+**Trace Link: RegionDiameter → NetworkDiameter**
+- From: `GlobalView::Topology::Region::RegionDiameter`
+- To: `Contiki_PSM::NetworkConfig::ContikiNetworkConfig::NetworkDiameter`
+
+This tells you:
+1. **What was traced**: The RegionDiameter class
+2. **Where it came from**: GlobalView's topology model
+3. **Where it went**: Contiki PSM's network configuration
+4. **The relationship**: The diameter property flows from abstract to platform-specific
 
 ---
 
 ## Key Concepts Demonstrated
 
-### 1. **Three Transformation Levels**
-- **L0**: Abstract → Platform (M2M)
-- **L1**: Multi-Platform → Integrated System (M2M)
-- **L2**: System → Code (M2T)
+### 1. **Class-Level Traceability**
+- Traces between classes, not individual attributes
+- Includes line numbers for code references
+- Shows structural transformations
 
-### 2. **System Integration**
-- Multiple platforms combined into single system
-- Mesh topology across heterogeneous nodes
-- System-level trace decisions
+### 2. **Multi-Platform M2M**
+- Single PIM to multiple PSMs
+- Each platform gets its own transformation
+- Selective detailed tracing (Contiki only)
 
 ### 3. **Model-to-Text Traceability**
-- From integrated system to platform-specific code
-- Template-based code generation
-- Model elements → Code functions mapping
+- PSM classes to C code
+- Line number precision
+- Derived values (calculations during transformation)
 
-### 4. **Version Tracking**
-- v1 = baseline
-- v2 = evolved (with ancestor links)
-- Works across all 3 levels
+### 4. **Selective Granularity**
+- Not all transformations need detailed tracing
+- Focus effort where it provides value
+- Mix of high-level and detailed traces
 
-### 5. **Realistic IoT Scenario**
-- Heterogeneous network (3 different platforms)
-- System integration before code generation
-- Multiple code outputs from single system
+### 5. **Visual Distinction**
+- Different shapes for different node types
+- Color-coding by abstraction level
+- Dynamic sizing for trace links
 
 ---
 
-## Visualization Features
+## File Structure
 
-Generate visualization:
-```bash
-.venv/bin/generate-global-trace src_artifacts/wireless_sensor_network.xml
-open output_g_trace/wireless_sensor_network.html
 ```
+src_artifacts/
+├── metaModel.xml              # MPM_trace metamodel with LevelOfAbstraction
+└── WSN_region_trace.xml       # This example
 
-**What you'll see**:
-- **9 trace nodes** arranged in 3 levels (L0, L1, L2)
-- **L0 (blue)**: Platform model generation
-- **L1 (green)**: System integration
-- **L2 (yellow)**: Code generation
-- **Solid lines**: Transformation flow between levels
-- **Dotted blue lines**: 3 ancestor links (v1 → v2)
-- **Integration point**: All L0 traces flow into single L1 trace (SystemDiagram)
-- **Branching**: L1 trace flows to 3 L2 traces (one per platform)
-
-**Legend**:
-- ━━ Transformation Flow (Between Levels)
-- ┅┅ Version Evolution (Within Same Transformation)
+output_g_trace/
+└── WSN_region_trace.html      # Generated visualization
+```
 
 ---
 
 ## Complexity Metrics
 
-- **Total nodes**: 47
-- **Metamodels**: 7 (Ecore, ATL, LTrace, GlobalViewMM, PSMM, SystemDiagramMM, CodeMM)
-- **Roles**: 3 (Network Engineer, IoT Engineer, Embedded System Engineer)
-- **Models**: 8 (1 GlobalView, 3 PSMs, 1 SystemDiagram, 3 Code)
-- **Transformations**: 7
-  - 3 at L0 (M2M to platforms)
-  - 1 at L1 (M2M integration)
-  - 3 at L2 (M2T to code)
-- **Executions**: 9
-- **Traces**: 9 (3 detailed, 6 simplified)
-- **Levels**: 3 (L0: M2M, L1: Integration, L2: M2T)
-- **Versions**: 2 (baseline and evolved)
-- **Ancestor links**: 3
-- **Integration points**: 1 (System Diagram)
+- **Models**: 7 (1 PIM, 3 PSMs, 3 Code models)
+- **TraceModels**: 6 (3 for M2M transformations, 3 for M2T transformations)
+- **Trace Links**: 4 (2 for Contiki M2M, 2 for Contiki M2T)
+- **Transformations**: 6 (3 M2M, 3 M2T)
+- **Executions**: 6
+- **Abstraction Levels**: 3 (PIM, PSM, Code)
+- **Platforms**: 3 (Arduino, RIOT, Contiki)
+- **Detailed trace paths**: 1 (Contiki end-to-end)
 
 ---
 
 ## Benefits
 
-### 1. **Clear Three-Level Structure**
-- L0: Abstract → Platform
-- L1: Platform → System (integration)
-- L2: System → Code
+### 1. **Clear Traceability Chain**
+- See how abstract concepts become concrete code
+- Understand transformation decisions
+- Trace value flow (100m → 10 hops)
 
-### 2. **Realistic System Integration**
-- Shows how multiple platforms combine
-- System-level traceability
-- Multi-platform mesh network
+### 2. **Realistic Complexity**
+- Multiple platforms from single source
+- Different tracing granularities
+- Real IoT development scenario
 
-### 3. **Model-to-Text Traceability**
-- Code generated from integrated system
-- Template-based generation
-- Trace system elements to code
+### 3. **Educational Value**
+- Demonstrates class-level tracing
+- Shows model-to-model and model-to-text
+- Illustrates selective detailed tracing
 
-### 4. **Simplified Code Generation**
-- Only C (no C++, Rust complexity)
-- Consistent across all platforms
-- Easy to understand
-
-### 5. **Version Management**
-- Track evolution across all 3 levels
-- Ancestor links show improvements
-- Works with system integration
+### 4. **Interactive Exploration**
+- Visual representation of traces
+- Hover for details
+- Easy to understand relationships
 
 ---
 
 ## Use Cases
 
 ### For Network Engineers
-- Understand multi-platform system integration
-- See mesh topology decisions in SystemDiagram
-- Trace network configuration to code
+- Understand how regional topology affects platform configurations
+- See how diameter influences routing (hop count calculation)
+- Trace network parameters to code constants
 
 ### For IoT Engineers
-- See platform model generation (L0)
-- Understand system integration (L1)
-- Trace to platform-specific code (L2)
+- See platform-specific model generation
+- Understand PSM to code transformation
+- Compare different platform approaches
 
-### For Embedded System Engineers
-- Understand code generation from system model
-- See Model-to-Text transformation decisions
-- Trace system elements to C functions
+### For Tool Developers
+- Study traceability implementation
+- Understand megamodel structure
+- Learn visualization techniques
 
 ### For Researchers
-- Study multi-level traceability (M2M → M2M → M2T)
-- Analyze system integration patterns
-- Understand heterogeneous IoT networks
+- Analyze multi-level traceability
+- Study selective tracing strategies
+- Understand heterogeneous platform support
 
 ---
 
@@ -347,12 +426,13 @@ open output_g_trace/wireless_sensor_network.html
 
 This wireless sensor network example demonstrates:
 
-✅ **Three transformation levels** (L0: M2M, L1: Integration, L2: M2T)
-✅ **System Diagram integration** (multi-platform mesh)
-✅ **Model-to-Text traceability** (system → C code)
+✅ **Class-level traceability** with precise line numbers
 ✅ **Multi-platform support** (Arduino, RIOT, Contiki)
-✅ **Consistent code generation** (all C)
-✅ **Version tracking** (v1, v2 with ancestors)
-✅ **Realistic complexity** (system integration before code gen)
+✅ **Selective detailed tracing** (focus on what matters)
+✅ **Two transformation types** (M2M and M2T)
+✅ **Abstraction level color-coding** (Purple PIM, Green PSM, Yellow Code, Blue TraceModels)
+✅ **Interactive visualization** with dynamic sizing
+✅ **Complete trace chains** from abstract models to executable code
+✅ **Realistic complexity** without overwhelming detail
 
-**Perfect balance of complexity and clarity - shows real multi-platform IoT development with complete traceability!**
+**Perfect balance of clarity and depth - shows practical traceability in multi-platform IoT development!**

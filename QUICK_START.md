@@ -10,67 +10,92 @@ uv pip install -e .
 ## Run the Example
 
 ```bash
-# Generate visualization for the recommended example
-.venv/bin/generate-global-trace src_artifacts/smart_home.xml -o output_g_trace/smart_home.html
+# Option 1: Open pre-generated visualization
+open output_g_trace/WSN_region_trace.html
 
-# Open in browser
-open output_g_trace/smart_home.html
+# Option 2: Regenerate the visualization
+python3 generate_global_trace.py src_artifacts/WSN_region_trace.xml
+
+# Option 3: Use the installed command (after activating virtual environment)
+source .venv/bin/activate
+generate-global-trace src_artifacts/WSN_region_trace.xml
 ```
 
 ## What You'll See
 
 An interactive D3.js visualization showing:
-- **5 trace nodes** organized by levels (L0, L1, L2)
-- **Solid lines** showing transformation/execution relationships
-- **Dotted lines** showing ancestor links (trace version evolution)
-- **Color coding** by node type
 
-### Trace Levels
+- **Three types of nodes** with distinct shapes:
+  - **Ellipses** - Models (7 total: 1 PIM, 3 PSMs, 3 Code artifacts)
+  - **Diamonds** - TraceModels (6 total: 3 M2M traces, 3 M2T traces)
+  - **Rounded rectangles** - Trace Links (3 element-level mappings)
+- **Color coding by abstraction level**:
+  - 🟣 Purple - PIM (GlobalView)
+  - 🟢 Green - PSM (Arduino_PSM, RIOT_PSM, Contiki_PSM)
+  - 🟡 Yellow - Code (Arduino_C_Code, RIOT_C_Code, Contiki_C_Code)
+  - 🔵 Blue - TraceModels (always blue, regardless of abstraction)
+- **Two link types**:
+  - Solid gray arrows - Transformation flow
+  - Dashed green arrows - Containment (TraceModel contains Trace Links)
 
-- **Level 0** (Requirements → Architecture):
-  - `Trace_Req2Arch_v1` - Baseline decomposition
-  - `Trace_Req2Arch_v2_EnergyOpt` - Energy-optimized version (has ancestor link to v1)
+## Element-Level Trace Links
 
-- **Level 1** (Architecture → PIM):
-  - `Trace_Arch2PIM_PID` - PID control algorithm
-  - `Trace_EnergyArch2PIM` - Low-power optimization (has ancestor link to v2)
+The example demonstrates **3 element-level trace links**:
 
-- **Level 2** (PIM → PSM):
-  - `Trace_PIM2PSM_ESP32` - ESP32 platform mapping
+1. **GlobalView → Arduino_PSM**
+   - `RegionDiameter → NetworkDiameter`
+   - Link type: copies
 
-### Ancestor Links
+2. **GlobalView → Contiki_PSM**
+   - `RegionDiameter → NetworkDiameter`
+   - Link type: copies
 
-The dotted lines show trace version relationships:
-```
-Trace_Req2Arch_v1
-    ⋮ (ancestor)
-Trace_Req2Arch_v2_EnergyOpt
-    ⋮ (ancestor)
-Trace_EnergyArch2PIM
-```
+3. **Contiki_PSM → Contiki_C_Code**
+   - `NetworkDiameter → MAX_HOP_COUNT`
+   - Link type: derives
+   - Transformation rule: `ceiling(diameter / 10m per hop)`
+
+## Interactive Features
+
+- **Hover tooltips** - See detailed information for each node
+- **Drag nodes** - Rearrange the layout
+- **Zoom/Pan** - Navigate the graph
+- **Dark mode toggle** (🌙) - Switch themes
+- **Reset view** - Return to default layout
 
 ## Understanding the Example
 
-Read the detailed explanation: [SMART_HOME_EXAMPLE.md](SMART_HOME_EXAMPLE.md)
+Read the complete explanation: [WIRELESS_SENSOR_NETWORK_EXAMPLE.md](WIRELESS_SENSOR_NETWORK_EXAMPLE.md)
 
 **Key concepts**:
-1. One transformation can have multiple executions (different versions)
-2. Traces can have ancestor links showing evolution
-3. Multiple design paths from same requirements
-4. Simple trace structure: 1 rule, 1-2 links per trace
+
+1. **Multi-platform transformation** - One PIM generates three PSMs (Arduino, RIOT, Contiki)
+2. **Element-level traceability** - Track specific model elements through transformations
+3. **Derivation rules** - Capture HOW values are calculated (diameter → hop count)
+4. **Change impact analysis** - Understand what changes when you modify upstream models
+
+## Example Change Impact
+
+**Scenario**: Change network diameter from 100m to 200m in GlobalView
+
+**Impact** (traceable via element-level links):
+
+1. Contiki_PSM `NetworkDiameter` updates to 200m (via "copies" link)
+2. Contiki_C_Code `MAX_HOP_COUNT` recalculates to 20 hops (via "derives" link with 10m/hop rule)
+
+See [WIRELESS_SENSOR_NETWORK_EXAMPLE.md](WIRELESS_SENSOR_NETWORK_EXAMPLE.md) for detailed change impact analysis.
 
 ## Project Structure
 
 ```
 src_artifacts/
-├── metaModel.xml                 # Metamodel definition (includes ancestor relation)
-├── smart_home.xml        # ⭐ Recommended simple example
-├── mpm_4_levels_trace.xml        # 4-level working example
-└── MPM_trace_example.xml         # Original example showing ancestor usage
+├── metaModel.xml              # Core MPM_trace metamodel definition
+└── WSN_region_trace.xml       # ⭐ Wireless Sensor Network example
 ```
 
 ## Next Steps
 
-- Read [SMART_HOME_EXAMPLE.md](SMART_HOME_EXAMPLE.md) for detailed process explanation
-- Check [TRACE_VISUALIZATION_GUIDE.md](TRACE_VISUALIZATION_GUIDE.md) for visualization strategies
-- See [CLAUDE.md](CLAUDE.md) for metamodel documentation
+- Read [WIRELESS_SENSOR_NETWORK_EXAMPLE.md](WIRELESS_SENSOR_NETWORK_EXAMPLE.md) for complete example explanation
+- Study [metaModel.xml](src_artifacts/metaModel.xml) to understand the metamodel
+- See [CLAUDE.md](CLAUDE.md) for project instructions and metamodel documentation
+- Try modifying [WSN_region_trace.xml](src_artifacts/WSN_region_trace.xml) and regenerating

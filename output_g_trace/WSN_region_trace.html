@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Global Trace Visualization - D3.js</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #f5f5f5;
+            --bg-secondary: white;
+            --bg-graph: #fafafa;
+            --text-primary: #333;
+            --text-secondary: #666;
+            --border-color: #ddd;
+            --shadow: rgba(0,0,0,0.1);
+            --link-color: #999;
+            --link-hover: #333;
+            --node-stroke: #fff;
+            --tooltip-bg: rgba(0, 0, 0, 0.9);
+            --tooltip-text: white;
+        }
+
+        body.dark-mode {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2d2d2d;
+            --bg-graph: #242424;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --border-color: #444;
+            --shadow: rgba(0,0,0,0.5);
+            --link-color: #888;
+            --link-hover: #ccc;
+            --node-stroke: #2d2d2d;
+            --tooltip-bg: rgba(255, 255, 255, 0.95);
+            --tooltip-text: #1a1a1a;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background-color: var(--bg-primary);
+            transition: background-color 0.3s ease;
+        }
+
+        #container {
+            background-color: var(--bg-secondary);
+            border-radius: 8px;
+            box-shadow: 0 2px 4px var(--shadow);
+            padding: 20px;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--text-primary);
+            margin-top: 0;
+            transition: color 0.3s ease;
+        }
+
+        .source-info {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 15px;
+            font-style: italic;
+            transition: color 0.3s ease;
+        }
+
+        #graph {
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background-color: var(--bg-graph);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        .link {
+            stroke: var(--link-color);
+            stroke-opacity: 0.6;
+            stroke-width: 2px;
+            fill: none;
+            marker-end: url(#arrowhead);
+            transition: stroke 0.3s ease;
+        }
+
+        .link:hover {
+            stroke: var(--link-hover);
+            stroke-opacity: 1;
+            stroke-width: 3px;
+        }
+
+        .node circle, .node rect, .node ellipse, .node path {
+            stroke: var(--node-stroke);
+            stroke-width: 3px;
+            cursor: move;
+            transition: stroke 0.3s ease;
+        }
+
+        .node:hover circle, .node:hover rect, .node:hover ellipse, .node:hover path {
+            stroke-width: 5px;
+        }
+
+        .node rect {
+            rx: 5;
+            ry: 5;
+        }
+
+        .node text {
+            font-size: 12px;
+            pointer-events: none;
+            text-anchor: middle;
+            font-weight: bold;
+            fill: var(--text-primary);
+            transition: fill 0.3s ease;
+        }
+
+        .tooltip {
+            position: absolute;
+            padding: 12px;
+            background-color: var(--tooltip-bg);
+            color: var(--tooltip-text);
+            border-radius: 6px;
+            pointer-events: none;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.3s, background-color 0.3s ease, color 0.3s ease;
+            max-width: 400px;
+            box-shadow: 0 4px 6px var(--shadow);
+            z-index: 1000;
+        }
+
+        .legend {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 14px;
+            color: var(--text-secondary);
+            transition: color 0.3s ease;
+        }
+
+        .legend-item {
+            display: inline-block;
+            margin: 0 15px;
+        }
+
+        .legend-color {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            margin-right: 5px;
+            vertical-align: middle;
+        }
+
+        .controls {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        button {
+            padding: 8px 16px;
+            margin: 0 5px;
+            border: none;
+            border-radius: 4px;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            line-height: 1.4;
+            min-height: 36px;
+            vertical-align: middle;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+        }
+
+        button:hover {
+            background-color: #45a049;
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        #darkModeToggle {
+            background-color: #666;
+            padding: 8px 16px;
+            font-size: 14px;
+            line-height: 1.4;
+            min-height: 36px;
+        }
+
+        #darkModeToggle:hover {
+            background-color: #555;
+        }
+
+        body.dark-mode #darkModeToggle {
+            background-color: #f0f0f0;
+            color: #1a1a1a;
+        }
+
+        body.dark-mode #darkModeToggle:hover {
+            background-color: #e0e0e0;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <h1>Global Trace Visualization</h1>
+        <div class="source-info">Source: src_artifacts/WSN_region_trace.xml</div>
+        <div class="controls">
+            <button onclick="resetPositions()">Reset Positions</button>
+            <button onclick="centerGraph()">Center View</button>
+            <button id="darkModeToggle" onclick="toggleDarkMode()">🌙 Dark Mode</button>
+        </div>
+        <svg id="graph"></svg>
+        <div class="legend" id="legend">
+            <!-- Legend will be dynamically generated -->
+        </div>
+    </div>
+    <div class="tooltip" id="tooltip"></div>
+
+    <script>
+        // Data
+        const nodes = [
+        {
+                "id": "model_10",
+                "name": "GlobalView",
+                "type": "model",
+                "metamodel": "GlobalViewMM",
+                "level": 0,
+                "LevelOfAbstraction": "PIM"
+        },
+        {
+                "id": "model_14",
+                "name": "Arduino_PSM",
+                "type": "model",
+                "metamodel": "PSMM",
+                "level": 1,
+                "LevelOfAbstraction": "PSM"
+        },
+        {
+                "id": "model_15",
+                "name": "RIOT_PSM",
+                "type": "model",
+                "metamodel": "PSMM",
+                "level": 1,
+                "LevelOfAbstraction": "PSM"
+        },
+        {
+                "id": "model_16",
+                "name": "Contiki_PSM",
+                "type": "model",
+                "metamodel": "PSMM",
+                "level": 1,
+                "LevelOfAbstraction": "PSM"
+        },
+        {
+                "id": "model_26",
+                "name": "Arduino_C_Code",
+                "type": "model",
+                "metamodel": "C_MM",
+                "level": 2,
+                "LevelOfAbstraction": "Code"
+        },
+        {
+                "id": "model_27",
+                "name": "RIOT_C_Code",
+                "type": "model",
+                "metamodel": "C_MM",
+                "level": 2,
+                "LevelOfAbstraction": "Code"
+        },
+        {
+                "id": "model_28",
+                "name": "Contiki_C_Code",
+                "type": "model",
+                "metamodel": "C_MM",
+                "level": 2,
+                "LevelOfAbstraction": "Code"
+        },
+        {
+                "id": "trace_20",
+                "name": "Trace_GenArduino",
+                "type": "trace",
+                "transformation": "GenArduino",
+                "input_models": [
+                        "GlobalView"
+                ],
+                "output_models": [
+                        "Arduino_PSM"
+                ],
+                "num_rules": 0,
+                "num_element_traces": 0,
+                "num_attribute_traces": 0,
+                "traced_rules": [],
+                "level": 0,
+                "version": "1",
+                "LevelOfAbstraction": "PSM"
+        },
+        {
+                "id": "trace_21",
+                "name": "Trace_GenRIOT",
+                "type": "trace",
+                "transformation": "GenRIOT",
+                "input_models": [
+                        "GlobalView"
+                ],
+                "output_models": [
+                        "RIOT_PSM"
+                ],
+                "num_rules": 0,
+                "num_element_traces": 0,
+                "num_attribute_traces": 0,
+                "traced_rules": [],
+                "level": 0,
+                "version": "1",
+                "LevelOfAbstraction": "PSM"
+        },
+        {
+                "id": "trace_22",
+                "name": "Trace_GenContiki",
+                "type": "trace",
+                "transformation": "GenContiki",
+                "input_models": [
+                        "GlobalView"
+                ],
+                "output_models": [
+                        "Contiki_PSM"
+                ],
+                "num_rules": 1,
+                "num_element_traces": 2,
+                "num_attribute_traces": 0,
+                "traced_rules": [
+                        {
+                                "name": "MapRegionToContiki",
+                                "intents": [],
+                                "trace_links": [
+                                        {
+                                                "name": "Region -> ContikiNetworkConfig",
+                                                "sourceElementPath": "GlobalView::Topology::Region",
+                                                "targetElementPath": "Contiki_PSM::NetworkConfig::ContikiNetworkConfig",
+                                                "sourceAttribute": null,
+                                                "targetAttribute": null,
+                                                "linkType": "transforms"
+                                        },
+                                        {
+                                                "name": "RegionDiameter -> NetworkDiameter",
+                                                "sourceElementPath": "GlobalView::Topology::Region::RegionDiameter",
+                                                "targetElementPath": "Contiki_PSM::NetworkConfig::ContikiNetworkConfig::NetworkDiameter",
+                                                "sourceAttribute": null,
+                                                "targetAttribute": null,
+                                                "linkType": "copies"
+                                        }
+                                ]
+                        }
+                ],
+                "level": 0,
+                "version": "1",
+                "LevelOfAbstraction": "PSM"
+        },
+        {
+                "id": "trace_32",
+                "name": "Trace_Arduino2C",
+                "type": "trace",
+                "transformation": "Arduino2Code",
+                "input_models": [
+                        "Arduino_PSM"
+                ],
+                "output_models": [
+                        "Arduino_C_Code"
+                ],
+                "num_rules": 0,
+                "num_element_traces": 0,
+                "num_attribute_traces": 0,
+                "traced_rules": [],
+                "level": 1,
+                "version": "1",
+                "LevelOfAbstraction": "Code"
+        },
+        {
+                "id": "trace_33",
+                "name": "Trace_RIOT2C",
+                "type": "trace",
+                "transformation": "RIOT2Code",
+                "input_models": [
+                        "RIOT_PSM"
+                ],
+                "output_models": [
+                        "RIOT_C_Code"
+                ],
+                "num_rules": 0,
+                "num_element_traces": 0,
+                "num_attribute_traces": 0,
+                "traced_rules": [],
+                "level": 1,
+                "version": "1",
+                "LevelOfAbstraction": "Code"
+        },
+        {
+                "id": "trace_34",
+                "name": "Trace_Contiki2C",
+                "type": "trace",
+                "transformation": "Contiki2Code",
+                "input_models": [
+                        "Contiki_PSM"
+                ],
+                "output_models": [
+                        "Contiki_C_Code"
+                ],
+                "num_rules": 1,
+                "num_element_traces": 1,
+                "num_attribute_traces": 0,
+                "traced_rules": [
+                        {
+                                "name": "GenerateContikiNetworkCode",
+                                "intents": [],
+                                "trace_links": [
+                                        {
+                                                "name": "NetworkDiameter -> MAX_HOP_COUNT",
+                                                "sourceElementPath": "Contiki_PSM::NetworkConfig::ContikiNetworkConfig::NetworkDiameter",
+                                                "targetElementPath": "Contiki_C_Code::contiki_network.c::MAX_HOP_COUNT (line 12)",
+                                                "sourceAttribute": null,
+                                                "targetAttribute": null,
+                                                "linkType": "derives"
+                                        }
+                                ]
+                        }
+                ],
+                "level": 1,
+                "version": "1",
+                "LevelOfAbstraction": "Code"
+        },
+        {
+                "id": "tracelink_22_0",
+                "name": "Region -> ContikiNetworkConfig",
+                "type": "trace_link",
+                "sourceElementPath": "GlobalView::Topology::Region",
+                "targetElementPath": "Contiki_PSM::NetworkConfig::ContikiNetworkConfig",
+                "linkType": "transforms",
+                "level": 0,
+                "parent_trace_id": "trace_22",
+                "LevelOfAbstraction": "PSM"
+        },
+        {
+                "id": "tracelink_22_1",
+                "name": "RegionDiameter -> NetworkDiameter",
+                "type": "trace_link",
+                "sourceElementPath": "GlobalView::Topology::Region::RegionDiameter",
+                "targetElementPath": "Contiki_PSM::NetworkConfig::ContikiNetworkConfig::NetworkDiameter",
+                "linkType": "copies",
+                "level": 0,
+                "parent_trace_id": "trace_22",
+                "LevelOfAbstraction": "PSM"
+        },
+        {
+                "id": "tracelink_34_2",
+                "name": "NetworkDiameter -> MAX_HOP_COUNT",
+                "type": "trace_link",
+                "sourceElementPath": "Contiki_PSM::NetworkConfig::ContikiNetworkConfig::NetworkDiameter",
+                "targetElementPath": "Contiki_C_Code::contiki_network.c::MAX_HOP_COUNT (line 12)",
+                "linkType": "derives",
+                "level": 1,
+                "parent_trace_id": "trace_34",
+                "LevelOfAbstraction": "Code"
+        }
+];
+        const links = [
+        {
+                "source": "model_10",
+                "target": "trace_20",
+                "type": "model_to_trace"
+        },
+        {
+                "source": "trace_20",
+                "target": "model_14",
+                "type": "trace_to_model"
+        },
+        {
+                "source": "model_10",
+                "target": "trace_21",
+                "type": "model_to_trace"
+        },
+        {
+                "source": "trace_21",
+                "target": "model_15",
+                "type": "trace_to_model"
+        },
+        {
+                "source": "model_10",
+                "target": "trace_22",
+                "type": "model_to_trace"
+        },
+        {
+                "source": "trace_22",
+                "target": "model_16",
+                "type": "trace_to_model"
+        },
+        {
+                "source": "model_14",
+                "target": "trace_32",
+                "type": "model_to_trace"
+        },
+        {
+                "source": "trace_32",
+                "target": "model_26",
+                "type": "trace_to_model"
+        },
+        {
+                "source": "model_15",
+                "target": "trace_33",
+                "type": "model_to_trace"
+        },
+        {
+                "source": "trace_33",
+                "target": "model_27",
+                "type": "trace_to_model"
+        },
+        {
+                "source": "model_16",
+                "target": "trace_34",
+                "type": "model_to_trace"
+        },
+        {
+                "source": "trace_34",
+                "target": "model_28",
+                "type": "trace_to_model"
+        }
+];
+        const containmentLinks = [
+        {
+                "source": "trace_22",
+                "target": "tracelink_22_0",
+                "type": "containment"
+        },
+        {
+                "source": "trace_22",
+                "target": "tracelink_22_1",
+                "type": "containment"
+        },
+        {
+                "source": "trace_34",
+                "target": "tracelink_34_2",
+                "type": "containment"
+        }
+];
+        const ancestorLinks = [];
+
+        // Combine all links for simulation
+        const allLinks = [...links, ...containmentLinks, ...ancestorLinks];
+
+        // Color scale for LevelOfAbstraction - distinct colors for PIM, PSM, Code
+        const colorScale = d3.scaleOrdinal()
+            .domain(['PIM', 'PSM', 'Code', 'Unknown'])
+            .range(['#9C27B0', '#4CAF50', '#FFC107', '#666']);  // Purple for PIM, Green for PSM, Yellow for Code
+
+        // Generate legend for LevelOfAbstraction
+        const legend = d3.select("#legend");
+        const abstractionLevels = ['PIM', 'PSM', 'Code'];
+        abstractionLevels.forEach(level => {
+            const item = legend.append("div").attr("class", "legend-item");
+            item.append("span")
+                .attr("class", "legend-color")
+                .style("background-color", colorScale(level));
+            item.append("span")
+                .text(level);
+        });
+
+        // Add shape legend
+        legend.append("div").attr("class", "legend-item").style("margin-top", "10px")
+            .html('⬭ Models (Ellipses)');
+        legend.append("div").attr("class", "legend-item")
+            .html('◆ Trace Models (Diamonds)');
+        legend.append("div").attr("class", "legend-item")
+            .html('⬬ Trace Links (Rounded Rectangles)');
+
+        // Add link legend
+        legend.append("div").attr("class", "legend-item").style("margin-top", "10px")
+            .html('━━ Transformation Flow');
+        legend.append("div").attr("class", "legend-item")
+            .html('<span style="color: #4CAF50">┅┅</span> Containment (TraceModel contains Trace Links)');
+
+
+        // Setup
+        const width = window.innerWidth - 80;
+        const height = 600;
+
+        const svg = d3.select("#graph")
+            .attr("width", width)
+            .attr("height", height);
+
+        // Add arrowhead marker
+        svg.append("defs").append("marker")
+            .attr("id", "arrowhead")
+            .attr("viewBox", "0 -5 10 10")
+            .attr("refX", 40)  // Position at edge of ellipse (rx=40)
+            .attr("refY", 0)
+            .attr("markerWidth", 8)
+            .attr("markerHeight", 8)
+            .attr("orient", "auto")
+            .append("path")
+            .attr("d", "M0,-5L10,0L0,5")
+            .attr("fill", "#999");
+
+        // Create zoom behavior
+        const zoom = d3.zoom()
+            .scaleExtent([0.1, 4])
+            .on("zoom", (event) => {
+                g.attr("transform", event.transform);
+            });
+
+        svg.call(zoom);
+
+        const g = svg.append("g");
+
+        // Calculate level positions - arrange left to right
+        const levels = [...new Set(nodes.map(d => d.level))].sort((a, b) => a - b);
+        const levelWidth = width / (levels.length + 1);
+        const levelPositions = {};
+        levels.forEach((level, i) => {
+            levelPositions[level] = (i + 1) * levelWidth;
+        });
+
+        // Force simulation
+        const simulation = d3.forceSimulation(nodes)
+            .force("link", d3.forceLink(allLinks).id(d => d.id).distance(150))
+            .force("charge", d3.forceManyBody().strength(-500))
+            .force("x", d3.forceX(d => levelPositions[d.level]).strength(0.5))
+            .force("y", d3.forceY(height / 2).strength(0.1))
+            .force("collision", d3.forceCollide().radius(d => {
+                if (d.type === 'trace') return 70;
+                return 50;
+            }));
+
+        // Dependency links (solid) with arrows
+        const link = g.append("g")
+            .selectAll("path")
+            .data(links)
+            .join("path")
+            .attr("class", "link")
+            .attr("marker-end", "url(#arrowhead)");
+
+        // Containment links (dashed green) with arrows
+        const containmentLink = g.append("g")
+            .selectAll("path")
+            .data(containmentLinks)
+            .join("path")
+            .attr("class", "link")
+            .attr("marker-end", "url(#arrowhead)")
+            .style("stroke", "#4CAF50")
+            .style("stroke-dasharray", "3,3")
+            .style("stroke-width", "1.5px");
+
+        // Ancestor links (dotted blue)
+        const ancestorLink = g.append("g")
+            .selectAll("path")
+            .data(ancestorLinks)
+            .join("path")
+            .attr("class", "link")
+            .style("stroke", "#0066cc")
+            .style("stroke-dasharray", "5,5")
+            .style("stroke-width", "2px");
+
+        // Nodes
+        const node = g.append("g")
+            .selectAll("g")
+            .data(nodes)
+            .join("g")
+            .attr("class", "node")
+            .call(d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended));
+
+        // Render different shapes based on type
+        node.each(function(d) {
+            const nodeGroup = d3.select(this);
+            if (d.type === 'model') {
+                // Models as ellipses
+                nodeGroup.append("ellipse")
+                    .attr("rx", 40)
+                    .attr("ry", 25)
+                    .style("fill", d => colorScale(d.LevelOfAbstraction || 'Unknown'));
+            } else if (d.type === 'trace') {
+                // Trace models as diamonds (rotated squares) - always blue
+                const size = 35;
+
+                nodeGroup.append("rect")
+                    .attr("width", size)
+                    .attr("height", size)
+                    .attr("x", -size/2)
+                    .attr("y", -size/2)
+                    .attr("transform", "rotate(45)")
+                    .style("fill", "#2196F3")  // Always blue for TraceModels
+                    .style("stroke", "var(--text-primary)")
+                    .style("stroke-width", 1.5);
+            } else if (d.type === 'trace_link') {
+                // Trace links as rounded rectangles - dynamic width based on text
+                const fontSize = 10;
+                const padding = 16;
+                const boxHeight = 30;
+
+                // Calculate approximate width based on text length (roughly 6.5px per char at 10px font)
+                const textWidth = d.name.length * 6.5;
+                const boxWidth = Math.max(120, textWidth + padding * 2);  // Min 120px, max based on text
+
+                nodeGroup.append("rect")
+                    .attr("width", boxWidth)
+                    .attr("height", boxHeight)
+                    .attr("x", -boxWidth/2)
+                    .attr("y", -boxHeight/2)
+                    .style("fill", d => colorScale(d.LevelOfAbstraction || 'Unknown'))
+                    .style("fill-opacity", 0.8)
+                    .style("rx", 8)
+                    .style("ry", 8)
+                    .style("stroke", "var(--text-primary)")
+                    .style("stroke-width", 1)
+                    .style("stroke-opacity", 0.3);
+
+                // Show full name without truncation
+                nodeGroup.append("text")
+                    .attr("y", 5)
+                    .attr("text-anchor", "middle")
+                    .style("font-size", fontSize + "px")
+                    .style("fill", "var(--text-primary)")
+                    .style("pointer-events", "none")
+                    .text(d.name);
+            }
+        });
+
+        // Add labels below nodes for models and trace models
+        node.filter(d => d.type === 'model').append("text")
+            .attr("dy", 35)
+            .attr("text-anchor", "middle")
+            .style("font-size", "11px")
+            .style("fill", "var(--text-primary)")
+            .text(d => d.name);
+
+        node.filter(d => d.type === 'trace').append("text")
+            .attr("dy", 35)
+            .attr("text-anchor", "middle")
+            .style("font-size", "10px")
+            .style("font-weight", "bold")
+            .style("fill", "var(--text-primary)")
+            .text(d => d.name.replace(/_v\d+$/, ''));
+
+        // Tooltip
+        const tooltip = d3.select("#tooltip");
+
+        node.on("mouseenter", (event, d) => {
+            let tooltipHTML = '';
+
+            if (d.type === 'model') {
+                // Model tooltip
+                tooltipHTML = `
+                    <strong>${d.name}</strong><br/>
+                    <div style="margin-top: 3px;">Type: Model</div>
+                    <div>Abstraction: ${d.LevelOfAbstraction}</div>
+                    <div>Metamodel: ${d.metamodel}</div>
+                `;
+            } else if (d.type === 'trace_link') {
+                // Trace link tooltip
+                tooltipHTML = `
+                    <strong>Trace Link: ${d.name}</strong><br/>
+                    <div style="margin-top: 5px; font-size: 11px;">
+                        <div style="color: #6c6;">From: ${d.sourceElementPath}</div>
+                        <div style="color: #6cc; margin-top: 3px;">To: ${d.targetElementPath}</div>
+                    </div>
+                `;
+            } else {
+                // Trace model tooltip - simplified, no version or level
+                const displayName = d.name.replace(/_v\d+$/, '');
+                tooltipHTML = `
+                    <strong>${displayName}</strong><br/>
+                    <div style="margin-top: 3px;">Type: TraceModel</div>
+                    <div>Transformation: ${d.transformation}</div>
+                `;
+            }
+
+            tooltip
+                .style("opacity", 1)
+                .html(tooltipHTML)
+                .style("left", (event.pageX + 10) + "px")
+                .style("top", (event.pageY - 10) + "px");
+        })
+        .on("mouseleave", () => {
+            tooltip.style("opacity", 0);
+        });
+
+        // Simulation tick
+        simulation.on("tick", () => {
+            // Update all link types
+            link.attr("d", d => {
+                return `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`;
+            });
+
+            containmentLink.attr("d", d => {
+                return `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`;
+            });
+
+            ancestorLink.attr("d", d => {
+                return `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`;
+            });
+
+            node.attr("transform", d => `translate(${d.x},${d.y})`);
+        });
+
+        // Drag functions
+        function dragstarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+
+        function dragended(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            // Keep node fixed at dragged position
+            // Uncomment next two lines to allow node to float after drag
+            // d.fx = null;
+            // d.fy = null;
+        }
+
+        // Reset positions
+        function resetPositions() {
+            nodes.forEach(d => {
+                d.fx = null;
+                d.fy = null;
+            });
+            simulation.alpha(1).restart();
+        }
+
+        // Center view
+        function centerGraph() {
+            svg.transition().duration(750).call(
+                zoom.transform,
+                d3.zoomIdentity.translate(width / 2, height / 2).scale(1).translate(-width / 2, -height / 2)
+            );
+        }
+
+        // Dark mode toggle
+        function toggleDarkMode() {
+            const body = document.body;
+            const button = document.getElementById('darkModeToggle');
+            const isDarkMode = body.classList.toggle('dark-mode');
+
+            // Update button text
+            button.textContent = isDarkMode ? '☀️ Light Mode' : '🌙 Dark Mode';
+
+            // Save preference to localStorage
+            localStorage.setItem('darkMode', isDarkMode ? 'enabled' : 'disabled');
+
+            // Update arrowhead marker color
+            updateArrowheadColor(isDarkMode);
+        }
+
+        // Update arrowhead marker to match theme
+        function updateArrowheadColor(isDarkMode) {
+            const arrowColor = isDarkMode ? '#888' : '#999';
+            d3.select('#arrowhead path').attr('fill', arrowColor);
+        }
+
+        // Load dark mode preference on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            const darkMode = localStorage.getItem('darkMode');
+            const button = document.getElementById('darkModeToggle');
+
+            if (darkMode === 'enabled') {
+                document.body.classList.add('dark-mode');
+                button.textContent = '☀️ Light Mode';
+                updateArrowheadColor(true);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -35,13 +35,15 @@ class GlobalTraceGeneratorD3:
                 conforms_to = node.get('conformsTo')
                 associated_with = node.get('associatedWith')
                 in_ref = node.get('In')  # Transformations this model is input to
+                level_of_abstraction = node.get('LevelOfAbstraction')  # PIM, PSM, or Code
 
                 self.models[idx] = {
                     'index': idx,
                     'name': name,
                     'conformsTo': conforms_to,
                     'associatedWith': associated_with,
-                    'In': in_ref
+                    'In': in_ref,
+                    'LevelOfAbstraction': level_of_abstraction
                 }
 
     def extract_trace_models(self):
@@ -304,7 +306,8 @@ class GlobalTraceGeneratorD3:
                 'name': model_data['name'],
                 'type': 'model',
                 'metamodel': mm_name,
-                'level': level
+                'level': level,
+                'LevelOfAbstraction': model_data.get('LevelOfAbstraction', 'Unknown')
             })
 
         # Add TraceModel nodes
@@ -315,6 +318,7 @@ class GlobalTraceGeneratorD3:
             # Get input and output models for this transformation
             input_models = []
             output_models = []
+            trace_abstraction_level = 'Unknown'
             if trans_idx:
                 trans_data = self.transformations[trans_idx]
                 if trans_data['IN']:
@@ -323,6 +327,11 @@ class GlobalTraceGeneratorD3:
                 if trans_data['OUT']:
                     out_indices = self.resolve_references_list(trans_data['OUT'])
                     output_models = [self.nodes[i].get('name', 'Unknown') for i in out_indices if i in self.nodes]
+                    # Determine trace abstraction level from output model
+                    if out_indices:
+                        first_out_idx = out_indices[0]
+                        if first_out_idx in self.models:
+                            trace_abstraction_level = self.models[first_out_idx].get('LevelOfAbstraction', 'Unknown')
 
             # Get node level
             level = node_levels.get(trace_idx, 0)
@@ -352,62 +361,44 @@ class GlobalTraceGeneratorD3:
                 'num_attribute_traces': attr_traces,
                 'traced_rules': trace_data['traced_rules'],
                 'level': level,
-                'version': trace_data.get('version', '')
+                'version': trace_data.get('version', ''),
+                'LevelOfAbstraction': trace_abstraction_level
             })
 
-        # Add Element-Level Trace Link nodes
-        # These are extracted from TraceModel's traced_rules
-        element_trace_map = {}  # Map element trace ID to its data
-
+        # Add trace link nodes (separate from TraceModel)
+        trace_link_nodes = []
         for trace_idx, trace_data in self.trace_models.items():
             trans_idx = trace_to_trans.get(trace_idx)
             level = node_levels.get(trace_idx, 0)
 
-            # Get input and output model indices for this transformation
-            input_model_indices = []
-            output_model_indices = []
-            if trans_idx:
+            # Determine abstraction level from output model
+            trace_abstraction_level = 'Unknown'
+            if trans_idx and trans_idx in self.transformations:
                 trans_data = self.transformations[trans_idx]
-                if trans_data['IN']:
-                    input_model_indices = self.resolve_references_list(trans_data['IN'])
                 if trans_data['OUT']:
-                    output_model_indices = self.resolve_references_list(trans_data['OUT'])
+                    out_indices = self.resolve_references_list(trans_data['OUT'])
+                    if out_indices and out_indices[0] in self.models:
+                        trace_abstraction_level = self.models[out_indices[0]].get('LevelOfAbstraction', 'Unknown')
 
-            # Extract element trace links from traced rules
+            # Extract trace links from traced rules
             for rule in trace_data['traced_rules']:
                 for link in rule['trace_links']:
                     if isinstance(link, dict) and (link.get('sourceElementPath') or link.get('targetElementPath')):
-                        # Create unique ID for this element trace
-                        element_trace_id = f'element_trace_{trace_idx}_{element_trace_counter}'
-                        element_trace_counter += 1
-
-                        # Determine if this is attribute-level or element-level
-                        is_attribute_trace = bool(link.get('sourceAttribute') or link.get('targetAttribute'))
-
-                        element_trace_data = {
-                            'id': element_trace_id,
+                        trace_link_nodes.append({
+                            'id': f'tracelink_{trace_idx}_{len(trace_link_nodes)}',
                             'name': link.get('name', 'Unnamed'),
-                            'type': 'element_trace',
-                            'trace_type': 'attribute' if is_attribute_trace else 'element',
+                            'type': 'trace_link',
                             'sourceElementPath': link.get('sourceElementPath', ''),
                             'targetElementPath': link.get('targetElementPath', ''),
-                            'sourceAttribute': link.get('sourceAttribute', ''),
-                            'targetAttribute': link.get('targetAttribute', ''),
                             'linkType': link.get('linkType', ''),
                             'level': level,
-                            'parent_trace': trace_data['name']
-                        }
+                            'parent_trace_id': f'trace_{trace_idx}',
+                            'LevelOfAbstraction': trace_abstraction_level
+                        })
 
-                        nodes_data.append(element_trace_data)
+        nodes_data.extend(trace_link_nodes)
 
-                        # Store mapping for link creation
-                        element_trace_map[element_trace_id] = {
-                            'data': element_trace_data,
-                            'input_models': input_model_indices,
-                            'output_models': output_model_indices
-                        }
-
-        # Build links data - connecting Models, Traces, and Element Traces
+        # Build links data - connecting Models and Traces
         links_data = []
 
         # Create links: Input Model → Trace → Output Model
@@ -436,26 +427,14 @@ class GlobalTraceGeneratorD3:
                         'type': 'trace_to_model'
                     })
 
-        # Create links for Element Traces: Input Model → Element Trace → Output Model
-        for element_trace_id, element_info in element_trace_map.items():
-            input_models = element_info['input_models']
-            output_models = element_info['output_models']
-
-            # Link from input models to element trace
-            for in_idx in input_models:
-                links_data.append({
-                    'source': f'model_{in_idx}',
-                    'target': element_trace_id,
-                    'type': 'model_to_element_trace'
-                })
-
-            # Link from element trace to output models
-            for out_idx in output_models:
-                links_data.append({
-                    'source': element_trace_id,
-                    'target': f'model_{out_idx}',
-                    'type': 'element_trace_to_model'
-                })
+        # Create containment links from TraceModel to its trace links
+        containment_links = []
+        for link_node in trace_link_nodes:
+            containment_links.append({
+                'source': link_node['parent_trace_id'],
+                'target': link_node['id'],
+                'type': 'containment'
+            })
 
         # Build ancestor links (version evolution within same transformation)
         ancestor_links = []
@@ -694,43 +673,43 @@ class GlobalTraceGeneratorD3:
         // Data
         const nodes = {json.dumps(nodes_data, indent=8)};
         const links = {json.dumps(links_data, indent=8)};
+        const containmentLinks = {json.dumps(containment_links, indent=8)};
         const ancestorLinks = {json.dumps(ancestor_links, indent=8)};
 
         // Combine all links for simulation
-        const allLinks = [...links, ...ancestorLinks];
+        const allLinks = [...links, ...containmentLinks, ...ancestorLinks];
 
-        // Calculate max level and create color scale
-        const maxLevel = Math.max(...nodes.map(n => n.level));
+        // Color scale for LevelOfAbstraction - distinct colors for PIM, PSM, Code
+        const colorScale = d3.scaleOrdinal()
+            .domain(['PIM', 'PSM', 'Code', 'Unknown'])
+            .range(['#9C27B0', '#4CAF50', '#FFC107', '#666']);  // Purple for PIM, Green for PSM, Yellow for Code
 
-        // Color scale for levels - interpolate between blue and red
-        const colorScale = d3.scaleSequential()
-            .domain([0, maxLevel])
-            .interpolator(d3.interpolateViridis);
-
-        // Generate legend
+        // Generate legend for LevelOfAbstraction
         const legend = d3.select("#legend");
-        for (let i = 0; i <= maxLevel; i++) {{
+        const abstractionLevels = ['PIM', 'PSM', 'Code'];
+        abstractionLevels.forEach(level => {{
             const item = legend.append("div").attr("class", "legend-item");
             item.append("span")
                 .attr("class", "legend-color")
-                .style("background-color", colorScale(i));
+                .style("background-color", colorScale(level));
             item.append("span")
-                .text(`Level ${{i}} (L${{i}})`);
-        }}
+                .text(level);
+        }});
 
         // Add shape legend
         legend.append("div").attr("class", "legend-item").style("margin-top", "10px")
             .html('⬭ Models (Ellipses)');
         legend.append("div").attr("class", "legend-item")
-            .html('⬜ Trace Models (Rectangles)');
+            .html('◆ Trace Models (Diamonds)');
         legend.append("div").attr("class", "legend-item")
-            .html('◆ Element Traces (Diamonds)');
+            .html('⬬ Trace Links (Rounded Rectangles)');
 
         // Add link legend
         legend.append("div").attr("class", "legend-item").style("margin-top", "10px")
             .html('━━ Transformation Flow');
         legend.append("div").attr("class", "legend-item")
-            .html('<span style="color: #0066cc">┅┅</span> Version Evolution');
+            .html('<span style="color: #4CAF50">┅┅</span> Containment (TraceModel contains Trace Links)');
+
 
         // Setup
         const width = window.innerWidth - 80;
@@ -744,10 +723,10 @@ class GlobalTraceGeneratorD3:
         svg.append("defs").append("marker")
             .attr("id", "arrowhead")
             .attr("viewBox", "0 -5 10 10")
-            .attr("refX", 25)
+            .attr("refX", 40)  // Position at edge of ellipse (rx=40)
             .attr("refY", 0)
-            .attr("markerWidth", 6)
-            .attr("markerHeight", 6)
+            .attr("markerWidth", 8)
+            .attr("markerHeight", 8)
             .attr("orient", "auto")
             .append("path")
             .attr("d", "M0,-5L10,0L0,5")
@@ -772,22 +751,37 @@ class GlobalTraceGeneratorD3:
             levelPositions[level] = (i + 1) * levelWidth;
         }});
 
-        // Force simulation (use all links for layout)
+        // Force simulation
         const simulation = d3.forceSimulation(nodes)
             .force("link", d3.forceLink(allLinks).id(d => d.id).distance(150))
             .force("charge", d3.forceManyBody().strength(-500))
             .force("x", d3.forceX(d => levelPositions[d.level]).strength(0.5))
             .force("y", d3.forceY(height / 2).strength(0.1))
-            .force("collision", d3.forceCollide().radius(50));
+            .force("collision", d3.forceCollide().radius(d => {{
+                if (d.type === 'trace') return 70;
+                return 50;
+            }}));
 
-        // Dependency links (solid)
+        // Dependency links (solid) with arrows
         const link = g.append("g")
             .selectAll("path")
             .data(links)
             .join("path")
-            .attr("class", "link");
+            .attr("class", "link")
+            .attr("marker-end", "url(#arrowhead)");
 
-        // Ancestor links (dotted)
+        // Containment links (dashed green) with arrows
+        const containmentLink = g.append("g")
+            .selectAll("path")
+            .data(containmentLinks)
+            .join("path")
+            .attr("class", "link")
+            .attr("marker-end", "url(#arrowhead)")
+            .style("stroke", "#4CAF50")
+            .style("stroke-dasharray", "3,3")
+            .style("stroke-width", "1.5px");
+
+        // Ancestor links (dotted blue)
         const ancestorLink = g.append("g")
             .selectAll("path")
             .data(ancestorLinks)
@@ -816,31 +810,69 @@ class GlobalTraceGeneratorD3:
                 nodeGroup.append("ellipse")
                     .attr("rx", 40)
                     .attr("ry", 25)
-                    .style("fill", d => colorScale(d.level));
+                    .style("fill", d => colorScale(d.LevelOfAbstraction || 'Unknown'));
             }} else if (d.type === 'trace') {{
-                // Traces as rectangles
+                // Trace models as diamonds (rotated squares) - always blue
+                const size = 35;
+
                 nodeGroup.append("rect")
-                    .attr("width", 60)
-                    .attr("height", 40)
-                    .attr("x", -30)
-                    .attr("y", -20)
-                    .style("fill", d => colorScale(d.level))
-                    .style("rx", 5)
-                    .style("ry", 5);
-            }} else if (d.type === 'element_trace') {{
-                // Element traces as diamonds
-                const size = 25;
-                nodeGroup.append("path")
-                    .attr("d", `M 0,${{-size}} L ${{size}},0 L 0,${{size}} L ${{-size}},0 Z`)
-                    .style("fill", d => colorScale(d.level))
-                    .style("stroke", "#fff")
-                    .style("stroke-width", 3);
+                    .attr("width", size)
+                    .attr("height", size)
+                    .attr("x", -size/2)
+                    .attr("y", -size/2)
+                    .attr("transform", "rotate(45)")
+                    .style("fill", "#2196F3")  // Always blue for TraceModels
+                    .style("stroke", "var(--text-primary)")
+                    .style("stroke-width", 1.5);
+            }} else if (d.type === 'trace_link') {{
+                // Trace links as rounded rectangles - dynamic width based on text
+                const fontSize = 10;
+                const padding = 16;
+                const boxHeight = 30;
+
+                // Calculate approximate width based on text length (roughly 6.5px per char at 10px font)
+                const textWidth = d.name.length * 6.5;
+                const boxWidth = Math.max(120, textWidth + padding * 2);  // Min 120px, max based on text
+
+                nodeGroup.append("rect")
+                    .attr("width", boxWidth)
+                    .attr("height", boxHeight)
+                    .attr("x", -boxWidth/2)
+                    .attr("y", -boxHeight/2)
+                    .style("fill", d => colorScale(d.LevelOfAbstraction || 'Unknown'))
+                    .style("fill-opacity", 0.8)
+                    .style("rx", 8)
+                    .style("ry", 8)
+                    .style("stroke", "var(--text-primary)")
+                    .style("stroke-width", 1)
+                    .style("stroke-opacity", 0.3);
+
+                // Show full name without truncation
+                nodeGroup.append("text")
+                    .attr("y", 5)
+                    .attr("text-anchor", "middle")
+                    .style("font-size", fontSize + "px")
+                    .style("fill", "var(--text-primary)")
+                    .style("pointer-events", "none")
+                    .text(d.name);
             }}
         }});
 
-        node.append("text")
+        // Add labels below nodes for models and trace models
+        node.filter(d => d.type === 'model').append("text")
             .attr("dy", 35)
+            .attr("text-anchor", "middle")
+            .style("font-size", "11px")
+            .style("fill", "var(--text-primary)")
             .text(d => d.name);
+
+        node.filter(d => d.type === 'trace').append("text")
+            .attr("dy", 35)
+            .attr("text-anchor", "middle")
+            .style("font-size", "10px")
+            .style("font-weight", "bold")
+            .style("fill", "var(--text-primary)")
+            .text(d => d.name.replace(/_v\d+$/, ''));
 
         // Tooltip
         const tooltip = d3.select("#tooltip");
@@ -853,74 +885,25 @@ class GlobalTraceGeneratorD3:
                 tooltipHTML = `
                     <strong>${{d.name}}</strong><br/>
                     <div style="margin-top: 3px;">Type: Model</div>
+                    <div>Abstraction: ${{d.LevelOfAbstraction}}</div>
                     <div>Metamodel: ${{d.metamodel}}</div>
-                    <div>Level: L${{d.level}}</div>
                 `;
-            }} else if (d.type === 'element_trace') {{
-                // Element trace tooltip
-                const traceTypeLabel = d.trace_type === 'attribute' ? '📊 Attribute-Level' : '🔗 Element-Level';
+            }} else if (d.type === 'trace_link') {{
+                // Trace link tooltip
                 tooltipHTML = `
-                    <strong>${{d.name}}</strong><br/>
-                    <div style="margin-top: 3px;">Type: ${{traceTypeLabel}} Trace</div>
-                    <div>Parent: ${{d.parent_trace}}</div>
-                    ${{d.sourceElementPath ? `<div style="margin-top: 3px; font-size: 11px;">From: ${{d.sourceElementPath}}</div>` : ''}}
-                    ${{d.sourceAttribute ? `<div style="font-size: 11px;">  ↳ ${{d.sourceAttribute}}</div>` : ''}}
-                    ${{d.targetElementPath ? `<div style="margin-top: 3px; font-size: 11px;">To: ${{d.targetElementPath}}</div>` : ''}}
-                    ${{d.targetAttribute ? `<div style="font-size: 11px;">  ↳ ${{d.targetAttribute}}</div>` : ''}}
-                    ${{d.linkType ? `<div style="margin-top: 3px;">Link Type: ${{d.linkType}}</div>` : ''}}
-                    <div>Level: L${{d.level}}</div>
+                    <strong>Trace Link: ${{d.name}}</strong><br/>
+                    <div style="margin-top: 5px; font-size: 11px;">
+                        <div style="color: #6c6;">From: ${{d.sourceElementPath}}</div>
+                        <div style="color: #6cc; margin-top: 3px;">To: ${{d.targetElementPath}}</div>
+                    </div>
                 `;
             }} else {{
-                // Trace tooltip
-                // Build detailed trace info
-                let detailsHTML = '';
-                if (d.traced_rules && d.traced_rules.length > 0) {{
-                    detailsHTML = '<hr style="margin: 5px 0; border-color: #555;"/>';
-                    d.traced_rules.forEach(rule => {{
-                        if (rule.trace_links && rule.trace_links.length > 0) {{
-                            detailsHTML += `<div style="margin-top: 5px;"><em>${{rule.name}}:</em></div>`;
-                            rule.trace_links.forEach(link => {{
-                                if (typeof link === 'object') {{
-                                    const linkName = link.name || 'Unnamed';
-                                    const linkType = link.linkType ? ` (${{link.linkType}})` : '';
-                                    detailsHTML += `<div style="margin-left: 10px; font-size: 11px;">`;
-
-                                    if (link.sourceAttribute && link.targetAttribute) {{
-                                        // Attribute-level trace
-                                        detailsHTML += `📊 ${{link.sourceAttribute}} → ${{link.targetAttribute}}${{linkType}}`;
-                                    }} else {{
-                                        // Element-level trace
-                                        detailsHTML += `🔗 ${{linkName}}${{linkType}}`;
-                                    }}
-                                    detailsHTML += `</div>`;
-                                }} else {{
-                                    detailsHTML += `<div style="margin-left: 10px; font-size: 11px;">🔗 ${{link}}</div>`;
-                                }}
-                            }});
-                        }}
-                    }});
-                }}
-
-                // Build input/output models display
-                let ioHTML = '';
-                if (d.input_models && d.input_models.length > 0) {{
-                    ioHTML += `<div style="margin-top: 3px;">📥 Input: ${{d.input_models.join(', ')}}</div>`;
-                }}
-                if (d.output_models && d.output_models.length > 0) {{
-                    ioHTML += `<div style="margin-top: 3px;">📤 Output: ${{d.output_models.join(', ')}}</div>`;
-                }}
-
+                // Trace model tooltip - simplified, no version or level
+                const displayName = d.name.replace(/_v\d+$/, '');
                 tooltipHTML = `
-                    <strong>${{d.name}}</strong><br/>
+                    <strong>${{displayName}}</strong><br/>
                     <div style="margin-top: 3px;">Type: TraceModel</div>
-                    ${{d.version ? `<div>Version: ${{d.version}}</div>` : ''}}
                     <div>Transformation: ${{d.transformation}}</div>
-                    ${{ioHTML}}
-                    <div style="margin-top: 3px;">Traced Rules: ${{d.num_rules}}</div>
-                    ${{d.num_element_traces ? `<div>Element Traces: ${{d.num_element_traces}}</div>` : ''}}
-                    ${{d.num_attribute_traces ? `<div>Attribute Traces: ${{d.num_attribute_traces}}</div>` : ''}}
-                    <div>Level: L${{d.level}}</div>
-                    ${{detailsHTML}}
                 `;
             }}
 
@@ -936,8 +919,12 @@ class GlobalTraceGeneratorD3:
 
         // Simulation tick
         simulation.on("tick", () => {{
-            // Update both dependency and ancestor links
+            // Update all link types
             link.attr("d", d => {{
+                return `M${{d.source.x}},${{d.source.y}} L${{d.target.x}},${{d.target.y}}`;
+            }});
+
+            containmentLink.attr("d", d => {{
                 return `M${{d.source.x}},${{d.source.y}} L${{d.target.x}},${{d.target.y}}`;
             }});
 

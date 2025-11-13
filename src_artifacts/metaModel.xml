@@ -10,6 +10,7 @@
     <relations name="nodes" many="true" containment="true" targetType="//@types.1"/>
   </types>
   <types name="Model" superTypes="//@types.1">
+    <attributes name="LevelOfAbstraction"/>
     <relations name="conformsTo" optional="false" targetType="//@types.0"/>
     <relations name="representedAs" many="true" targetType="//@types.5"/>
     <relations name="associatedWith" many="true" targetType="//@types.12"/>

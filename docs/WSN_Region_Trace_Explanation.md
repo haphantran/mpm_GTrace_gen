@@ -13,50 +13,57 @@ This represents a realistic scenario where complete system-wide traceability exi
 
 Before diving into the trace structure, let's clarify the key WSN (Wireless Sensor Network) concepts used in this example:
 
-### Model Attributes and Transformation Logic
+### Model Classes and Transformation Logic
 
-**Region.diameter** (Coverage requirement - from GlobalView):
+**Region** (Class in GlobalView):
 
+- **Location**: `GlobalView::Topology::Region`
+- **Meaning**: Represents the geographic deployment area for the sensor network
+- **Purpose**: High-level specification of network coverage requirements
+
+**RegionDiameter** (Class in Region):
+
+- **Location**: `GlobalView::Topology::Region::RegionDiameter`
 - **Unit**: Meters (m)
-- **Meaning**: The physical distance across the sensor network deployment area that must be covered
-- **Example**: `diameter = 100` means the network must cover a circular area 100 meters across
+- **Value**: 100 meters
+- **Meaning**: The physical distance across the sensor network deployment area
 - **Use**: IoT engineers specify the physical coverage requirement
 - **Real-world**: "We need sensors to cover a 100-meter diameter field"
 
-**ContikiNetworkConfig.diameter** (PSM attribute - copied from GlobalView):
+**NetworkDiameter** (Class in ContikiNetworkConfig - PSM):
 
+- **Location**: `Contiki_PSM::NetworkConfig::ContikiNetworkConfig::NetworkDiameter`
 - **Unit**: Meters (m)
-- **Meaning**: The network coverage requirement stored in the platform-specific model
-- **Example**: `diameter = 100` (copied directly from Region.diameter)
+- **Value**: 100 meters (copied from RegionDiameter)
 - **Use**: Preserved in PSM to be used by code generation transformation
 
 **MAX_HOP_COUNT** (C code constant - derived using transformation rule):
 
+- **Location**: `Contiki_C_Code::contiki_network.c::MAX_HOP_COUNT` (line 12)
 - **Unit**: Hops (number of relay transmissions)
-- **Meaning**: The maximum number of hops a message can traverse in the network
-- **Example**: `#define MAX_HOP_COUNT 10` (calculated: ceil(100m / 10) = 10 hops)
+- **Value**: 10 hops
 - **Transformation Rule**: "10m per hop" (Contiki mesh routing standard)
-- **Calculation**: `ceil(diameter / 10)`
+- **Calculation**: `ceil(NetworkDiameter / 10) = ceil(100 / 10) = 10`
 - **Use**: Prevents infinite routing loops and ensures messages can reach network edges
 - **Real-world**: "Allow up to 10 hops to cover 100m diameter with standard 10m/hop routing"
 
 ### Transformation Logic
 
-The traceability chain shows how **coverage requirements** are transformed into **routing parameters** using platform-specific transformation rules:
+The traceability chain shows how **coverage requirement classes** are transformed into **routing parameter classes** using platform-specific transformation rules:
 
 ```
-Physical Requirement    Transformation Rule       Calculated Parameter
-diameter (100m)    +    "10m per hop"        →    MAX_HOP_COUNT (10 hops)
-       ↓                      ↓                          ↓
-    Copied to PSM      Documented in Intent      Derived in C code
+Class Hierarchy                 Transformation              Generated Code
+RegionDiameter (100m)    +    "10m per hop" rule    →    MAX_HOP_COUNT (line 12)
+       ↓                           ↓                            ↓
+NetworkDiameter (PSM)      Documented in Intent        Constant (10 hops)
 ```
 
 **Design Rationale:**
 
-1. **Coverage requirement** (100m diameter) comes from application needs (GlobalView)
-2. **Transformation rule** (10m per hop) is a Contiki mesh routing standard
-3. **Max hop count** is calculated: `100m ÷ 10m = 10` hops
-4. This ensures messages can traverse the full network diameter
+1. **Coverage requirement** (RegionDiameter class, 100m) comes from application needs (GlobalView)
+2. **Class-level tracing** tracks how RegionDiameter maps to NetworkDiameter in PSM
+3. **Transformation rule** (10m per hop) is a Contiki mesh routing standard
+4. **Code generation** creates MAX_HOP_COUNT constant with line number information
 5. The rule is **documented in the Intent** parameters, making it traceable and reproducible
 
 ## System Architecture
