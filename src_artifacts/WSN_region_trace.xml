@@ -117,17 +117,11 @@
          conformsTo="//@nodes.3"
          version="1"/>
 
-  <!-- [22] L0 Trace: GlobalView → Contiki PSM (DETAILED WITH TRACE LINKS) -->
+  <!-- [22] L0 Trace: GlobalView → Contiki PSM (DETAILED WITH TRACE LINK) -->
   <nodes xmi:type="mpm_trace:TraceModel" name="Trace_GenContiki"
          conformsTo="//@nodes.3"
          version="1">
     <contains name="MapRegionToContiki">
-      <!-- Trace link: Region class -> ContikiNetworkConfig class -->
-      <traceLinks name="Region -> ContikiNetworkConfig"
-                  sourceElementPath="GlobalView::Topology::Region"
-                  targetElementPath="Contiki_PSM::NetworkConfig::ContikiNetworkConfig"
-                  linkType="transforms"/>
-
       <!-- Trace link: RegionDiameter class -> NetworkDiameter class -->
       <traceLinks name="RegionDiameter -> NetworkDiameter"
                   sourceElementPath="GlobalView::Topology::Region::RegionDiameter"

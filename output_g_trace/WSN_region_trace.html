@@ -72,6 +72,8 @@
             border-radius: 4px;
             background-color: var(--bg-graph);
             transition: background-color 0.3s ease, border-color 0.3s ease;
+            display: block;
+            margin: 0 auto;
         }
 
         .link {
@@ -327,21 +329,13 @@
                         "Contiki_PSM"
                 ],
                 "num_rules": 1,
-                "num_element_traces": 2,
+                "num_element_traces": 1,
                 "num_attribute_traces": 0,
                 "traced_rules": [
                         {
                                 "name": "MapRegionToContiki",
                                 "intents": [],
                                 "trace_links": [
-                                        {
-                                                "name": "Region -> ContikiNetworkConfig",
-                                                "sourceElementPath": "GlobalView::Topology::Region",
-                                                "targetElementPath": "Contiki_PSM::NetworkConfig::ContikiNetworkConfig",
-                                                "sourceAttribute": null,
-                                                "targetAttribute": null,
-                                                "linkType": "transforms"
-                                        },
                                         {
                                                 "name": "RegionDiameter -> NetworkDiameter",
                                                 "sourceElementPath": "GlobalView::Topology::Region::RegionDiameter",
@@ -431,17 +425,6 @@
         },
         {
                 "id": "tracelink_22_0",
-                "name": "Region -> ContikiNetworkConfig",
-                "type": "trace_link",
-                "sourceElementPath": "GlobalView::Topology::Region",
-                "targetElementPath": "Contiki_PSM::NetworkConfig::ContikiNetworkConfig",
-                "linkType": "transforms",
-                "level": 0,
-                "parent_trace_id": "trace_22",
-                "LevelOfAbstraction": "PSM"
-        },
-        {
-                "id": "tracelink_22_1",
                 "name": "RegionDiameter -> NetworkDiameter",
                 "type": "trace_link",
                 "sourceElementPath": "GlobalView::Topology::Region::RegionDiameter",
@@ -452,7 +435,7 @@
                 "LevelOfAbstraction": "PSM"
         },
         {
-                "id": "tracelink_34_2",
+                "id": "tracelink_34_1",
                 "name": "NetworkDiameter -> MAX_HOP_COUNT",
                 "type": "trace_link",
                 "sourceElementPath": "Contiki_PSM::NetworkConfig::ContikiNetworkConfig::NetworkDiameter",
@@ -532,13 +515,8 @@
                 "type": "containment"
         },
         {
-                "source": "trace_22",
-                "target": "tracelink_22_1",
-                "type": "containment"
-        },
-        {
                 "source": "trace_34",
-                "target": "tracelink_34_2",
+                "target": "tracelink_34_1",
                 "type": "containment"
         }
 ];
@@ -552,49 +530,51 @@
             .domain(['PIM', 'PSM', 'Code', 'Unknown'])
             .range(['#9C27B0', '#4CAF50', '#FFC107', '#666']);  // Purple for PIM, Green for PSM, Yellow for Code
 
-        // Generate legend for LevelOfAbstraction
+        // Generate compact legend for LevelOfAbstraction
         const legend = d3.select("#legend");
         const abstractionLevels = ['PIM', 'PSM', 'Code'];
-        abstractionLevels.forEach(level => {
-            const item = legend.append("div").attr("class", "legend-item");
-            item.append("span")
+
+        // Compact color legend (inline)
+        const colorLegend = legend.append("div").style("margin-bottom", "5px");
+        abstractionLevels.forEach((level, i) => {
+            if (i > 0) colorLegend.append("span").html(" | ");
+            colorLegend.append("span")
                 .attr("class", "legend-color")
-                .style("background-color", colorScale(level));
-            item.append("span")
+                .style("background-color", colorScale(level))
+                .style("display", "inline-block")
+                .style("width", "10px")
+                .style("height", "10px")
+                .style("margin-right", "3px");
+            colorLegend.append("span")
+                .style("font-size", "10px")
                 .text(level);
         });
 
-        // Add shape legend
-        legend.append("div").attr("class", "legend-item").style("margin-top", "10px")
-            .html('⬭ Models (Ellipses)');
-        legend.append("div").attr("class", "legend-item")
-            .html('◆ Trace Models (Diamonds)');
-        legend.append("div").attr("class", "legend-item")
-            .html('⬬ Trace Links (Rounded Rectangles)');
+        // Compact shape legend
+        legend.append("div").attr("class", "legend-item").style("font-size", "9px")
+            .html('⬭ Model | ◆ Trace | ⬬ Link');
 
-        // Add link legend
-        legend.append("div").attr("class", "legend-item").style("margin-top", "10px")
-            .html('━━ Transformation Flow');
-        legend.append("div").attr("class", "legend-item")
-            .html('<span style="color: #4CAF50">┅┅</span> Containment (TraceModel contains Trace Links)');
+        // Compact link legend
+        legend.append("div").attr("class", "legend-item").style("font-size", "9px")
+            .html('━ Flow | <span style="color: #4CAF50">┅</span> Contains');
 
 
-        // Setup
-        const width = window.innerWidth - 80;
-        const height = 600;
+        // Setup - Portrait orientation (narrow width, tall height)
+        const width = 500;  // Narrow for 2-column paper format
+        const height = 900; // Tall for vertical layout
 
         const svg = d3.select("#graph")
             .attr("width", width)
             .attr("height", height);
 
-        // Add arrowhead marker
+        // Add arrowhead marker (smaller)
         svg.append("defs").append("marker")
             .attr("id", "arrowhead")
             .attr("viewBox", "0 -5 10 10")
-            .attr("refX", 40)  // Position at edge of ellipse (rx=40)
+            .attr("refX", 25)  // Position at edge of smaller ellipse
             .attr("refY", 0)
-            .attr("markerWidth", 8)
-            .attr("markerHeight", 8)
+            .attr("markerWidth", 6)
+            .attr("markerHeight", 6)
             .attr("orient", "auto")
             .append("path")
             .attr("d", "M0,-5L10,0L0,5")
@@ -611,23 +591,24 @@
 
         const g = svg.append("g");
 
-        // Calculate level positions - arrange left to right
+        // Calculate level positions - arrange TOP TO BOTTOM (portrait)
         const levels = [...new Set(nodes.map(d => d.level))].sort((a, b) => a - b);
-        const levelWidth = width / (levels.length + 1);
+        const levelHeight = height / (levels.length + 1);
         const levelPositions = {};
         levels.forEach((level, i) => {
-            levelPositions[level] = (i + 1) * levelWidth;
+            levelPositions[level] = (i + 1) * levelHeight;
         });
 
-        // Force simulation
+        // Force simulation - portrait orientation (vertical)
         const simulation = d3.forceSimulation(nodes)
-            .force("link", d3.forceLink(allLinks).id(d => d.id).distance(150))
-            .force("charge", d3.forceManyBody().strength(-500))
-            .force("x", d3.forceX(d => levelPositions[d.level]).strength(0.5))
-            .force("y", d3.forceY(height / 2).strength(0.1))
+            .force("link", d3.forceLink(allLinks).id(d => d.id).distance(70))
+            .force("charge", d3.forceManyBody().strength(-200))
+            .force("y", d3.forceY(d => levelPositions[d.level]).strength(0.5))  // Y axis for levels (vertical)
+            .force("x", d3.forceX(width / 2).strength(0.1))  // X axis for spreading (horizontal)
             .force("collision", d3.forceCollide().radius(d => {
-                if (d.type === 'trace') return 70;
-                return 50;
+                if (d.type === 'trace') return 40;
+                if (d.type === 'trace_link') return 50;
+                return 35;
             }));
 
         // Dependency links (solid) with arrows
@@ -670,18 +651,18 @@
                 .on("drag", dragged)
                 .on("end", dragended));
 
-        // Render different shapes based on type
+        // Render different shapes based on type (SMALLER SIZES)
         node.each(function(d) {
             const nodeGroup = d3.select(this);
             if (d.type === 'model') {
-                // Models as ellipses
+                // Models as ellipses (SMALLER: 25x15 instead of 40x25)
                 nodeGroup.append("ellipse")
-                    .attr("rx", 40)
-                    .attr("ry", 25)
+                    .attr("rx", 25)
+                    .attr("ry", 15)
                     .style("fill", d => colorScale(d.LevelOfAbstraction || 'Unknown'));
             } else if (d.type === 'trace') {
-                // Trace models as diamonds (rotated squares) - always blue
-                const size = 35;
+                // Trace models as diamonds (SMALLER: 22 instead of 35)
+                const size = 22;
 
                 nodeGroup.append("rect")
                     .attr("width", size)
@@ -691,16 +672,16 @@
                     .attr("transform", "rotate(45)")
                     .style("fill", "#2196F3")  // Always blue for TraceModels
                     .style("stroke", "var(--text-primary)")
-                    .style("stroke-width", 1.5);
+                    .style("stroke-width", 1);
             } else if (d.type === 'trace_link') {
-                // Trace links as rounded rectangles - dynamic width based on text
-                const fontSize = 10;
-                const padding = 16;
-                const boxHeight = 30;
+                // Trace links as rounded rectangles (SMALLER)
+                const fontSize = 8;
+                const padding = 10;
+                const boxHeight = 20;
 
-                // Calculate approximate width based on text length (roughly 6.5px per char at 10px font)
-                const textWidth = d.name.length * 6.5;
-                const boxWidth = Math.max(120, textWidth + padding * 2);  // Min 120px, max based on text
+                // Calculate width based on text length (smaller font)
+                const textWidth = d.name.length * 5;
+                const boxWidth = Math.max(80, textWidth + padding * 2);  // Min 80px
 
                 nodeGroup.append("rect")
                     .attr("width", boxWidth)
@@ -709,15 +690,15 @@
                     .attr("y", -boxHeight/2)
                     .style("fill", d => colorScale(d.LevelOfAbstraction || 'Unknown'))
                     .style("fill-opacity", 0.8)
-                    .style("rx", 8)
-                    .style("ry", 8)
+                    .style("rx", 5)
+                    .style("ry", 5)
                     .style("stroke", "var(--text-primary)")
-                    .style("stroke-width", 1)
+                    .style("stroke-width", 0.5)
                     .style("stroke-opacity", 0.3);
 
-                // Show full name without truncation
+                // Show full name (smaller font)
                 nodeGroup.append("text")
-                    .attr("y", 5)
+                    .attr("y", 4)
                     .attr("text-anchor", "middle")
                     .style("font-size", fontSize + "px")
                     .style("fill", "var(--text-primary)")
@@ -726,18 +707,18 @@
             }
         });
 
-        // Add labels below nodes for models and trace models
+        // Add labels below nodes (SMALLER FONTS)
         node.filter(d => d.type === 'model').append("text")
-            .attr("dy", 35)
+            .attr("dy", 22)
             .attr("text-anchor", "middle")
-            .style("font-size", "11px")
+            .style("font-size", "9px")
             .style("fill", "var(--text-primary)")
             .text(d => d.name);
 
         node.filter(d => d.type === 'trace').append("text")
-            .attr("dy", 35)
+            .attr("dy", 22)
             .attr("text-anchor", "middle")
-            .style("font-size", "10px")
+            .style("font-size", "8px")
             .style("font-weight", "bold")
             .style("fill", "var(--text-primary)")
             .text(d => d.name.replace(/_v\d+$/, ''));
@@ -779,7 +760,7 @@
                 .style("opacity", 1)
                 .html(tooltipHTML)
                 .style("left", (event.pageX + 10) + "px")
-                .style("top", (event.pageY - 10) + "px");
+                .style("top", (event.pageY + 10) + "px");  // Position slightly below the cursor
         })
         .on("mouseleave", () => {
             tooltip.style("opacity", 0);
