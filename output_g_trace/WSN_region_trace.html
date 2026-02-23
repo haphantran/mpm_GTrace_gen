@@ -37,18 +37,25 @@
 
         body {
             margin: 0;
-            padding: 20px;
+            padding: 10px;
             font-family: Arial, sans-serif;
             background-color: var(--bg-primary);
             transition: background-color 0.3s ease;
+            overflow: hidden;
+            height: 100vh;
+            box-sizing: border-box;
         }
 
         #container {
             background-color: var(--bg-secondary);
             border-radius: 8px;
             box-shadow: 0 2px 4px var(--shadow);
-            padding: 20px;
+            padding: 10px;
             transition: background-color 0.3s ease, box-shadow 0.3s ease;
+            height: calc(100vh - 20px);
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
         }
 
         h1 {
@@ -73,7 +80,9 @@
             background-color: var(--bg-graph);
             transition: background-color 0.3s ease, border-color 0.3s ease;
             display: block;
-            margin: 0 auto;
+            width: 100%;
+            flex: 1;
+            min-height: 0;
         }
 
         .link {
@@ -559,13 +568,16 @@
             .html('━ Flow | <span style="color: #4CAF50">┅</span> Contains');
 
 
-        // Setup - Portrait orientation (narrow width, tall height)
-        const width = 500;  // Narrow for 2-column paper format
-        const height = 900; // Tall for vertical layout
+        // Setup - Landscape orientation (full viewport, left-to-right flow)
+        const graphEl = document.getElementById("graph");
+        const width = graphEl.clientWidth || window.innerWidth - 40;
+        const height = graphEl.clientHeight || window.innerHeight - 150;
 
         const svg = d3.select("#graph")
             .attr("width", width)
-            .attr("height", height);
+            .attr("height", height)
+            .attr("viewBox", `0 0 ${width} ${height}`)
+            .attr("preserveAspectRatio", "xMidYMid meet");
 
         // Add arrowhead marker (smaller)
         svg.append("defs").append("marker")
@@ -591,24 +603,24 @@
 
         const g = svg.append("g");
 
-        // Calculate level positions - arrange TOP TO BOTTOM (portrait)
+        // Calculate level positions - arrange LEFT TO RIGHT (landscape)
         const levels = [...new Set(nodes.map(d => d.level))].sort((a, b) => a - b);
-        const levelHeight = height / (levels.length + 1);
+        const levelWidth = width / (levels.length + 1);
         const levelPositions = {};
         levels.forEach((level, i) => {
-            levelPositions[level] = (i + 1) * levelHeight;
+            levelPositions[level] = (i + 1) * levelWidth;
         });
 
-        // Force simulation - portrait orientation (vertical)
+        // Force simulation - landscape orientation (horizontal)
         const simulation = d3.forceSimulation(nodes)
-            .force("link", d3.forceLink(allLinks).id(d => d.id).distance(70))
-            .force("charge", d3.forceManyBody().strength(-200))
-            .force("y", d3.forceY(d => levelPositions[d.level]).strength(0.5))  // Y axis for levels (vertical)
-            .force("x", d3.forceX(width / 2).strength(0.1))  // X axis for spreading (horizontal)
+            .force("link", d3.forceLink(allLinks).id(d => d.id).distance(100))
+            .force("charge", d3.forceManyBody().strength(-300))
+            .force("x", d3.forceX(d => levelPositions[d.level]).strength(0.5))  // X axis for levels (horizontal)
+            .force("y", d3.forceY(height / 2).strength(0.1))  // Y axis for spreading (vertical)
             .force("collision", d3.forceCollide().radius(d => {
-                if (d.type === 'trace') return 40;
-                if (d.type === 'trace_link') return 50;
-                return 35;
+                if (d.type === 'trace') return 45;
+                if (d.type === 'trace_link') return 55;
+                return 40;
             }));
 
         // Dependency links (solid) with arrows
@@ -842,6 +854,14 @@
             const arrowColor = isDarkMode ? '#888' : '#999';
             d3.select('#arrowhead path').attr('fill', arrowColor);
         }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            const newWidth = graphEl.clientWidth;
+            const newHeight = graphEl.clientHeight;
+            svg.attr("width", newWidth).attr("height", newHeight)
+               .attr("viewBox", `0 0 ${newWidth} ${newHeight}`);
+        });
 
         // Load dark mode preference on page load
         window.addEventListener('DOMContentLoaded', () => {
